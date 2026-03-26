@@ -7,7 +7,7 @@ function replaceTorSkills(torId, skills, db = getDb()) {
       if (!skills || skills.length === 0) return resolve([]);
 
       const stmt = db.prepare(
-        'INSERT INTO tor_skills (tor_id, skill) VALUES (?, ?)',
+        'INSERT INTO tor_skills (tor_id, skill, weight) VALUES (?, ?, ?)',
         (prepErr) => { if (prepErr) return reject(prepErr); }
       );
 
@@ -15,14 +15,27 @@ function replaceTorSkills(torId, skills, db = getDb()) {
       let failed = false;
       const inserted = [];
 
-      skills.forEach((skill) => {
-        const trimmed = skill.trim();
-        if (!trimmed) { if (--pending === 0) { stmt.finalize(); resolve(inserted); } return; }
-        stmt.run([torId, trimmed], function (runErr) {
-          if (failed) return;
-          if (runErr) { failed = true; return reject(runErr); }
-          inserted.push(trimmed);
+      skills.forEach((s) => {
+        const skillName = typeof s === 'string' ? s.trim() : (s.skill ? s.skill.trim() : '');
+        const weight = typeof s === 'object' && s.weight !== undefined ? s.weight : 3;
+
+        if (!skillName) {
           if (--pending === 0) { stmt.finalize(); resolve(inserted); }
+          return;
+        }
+
+        stmt.run([torId, skillName, weight], function (runErr) {
+          if (failed) return;
+          if (runErr) {
+            failed = true;
+            stmt.finalize();
+            return reject(runErr);
+          }
+          inserted.push({ skill: skillName, weight });
+          if (--pending === 0) {
+            stmt.finalize();
+            resolve(inserted);
+          }
         });
       });
     });
@@ -32,7 +45,7 @@ function replaceTorSkills(torId, skills, db = getDb()) {
 function getTorSkills(torId, db = getDb()) {
   return new Promise((resolve, reject) => {
     db.all(
-      'SELECT id, skill, extracted_at FROM tor_skills WHERE tor_id = ? ORDER BY skill',
+      'SELECT id, skill, weight, extracted_at FROM tor_skills WHERE tor_id = ? ORDER BY skill',
       [torId],
       (err, rows) => (err ? reject(err) : resolve(rows))
     );

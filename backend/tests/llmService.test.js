@@ -41,7 +41,11 @@ describe('extractSkillsFromTor — local model', () => {
   test('returns parsed skills array', async () => {
     axios.post.mockResolvedValueOnce({ data: { response: '["Python","SQL","Communication"]' } });
     const skills = await extractSkillsFromTor(TOR_TEXT, LOCAL_CONFIG);
-    expect(skills).toEqual(['Python', 'SQL', 'Communication']);
+    expect(skills).toEqual([
+      { skill: 'Python', weight: 3 },
+      { skill: 'SQL', weight: 3 },
+      { skill: 'Communication', weight: 3 }
+    ]);
   });
 
   test('calls local Ollama endpoint', async () => {
@@ -73,7 +77,7 @@ describe('extractSkillsFromTor — local model', () => {
   test('extracts JSON array embedded in extra text', async () => {
     axios.post.mockResolvedValueOnce({ data: { response: 'Skills: ["Python","SQL"] done.' } });
     const skills = await extractSkillsFromTor(TOR_TEXT, LOCAL_CONFIG);
-    expect(skills).toContain('Python');
+    expect(skills.map(s => s.skill)).toContain('Python');
   });
 
   test('handles missing response field', async () => {
@@ -119,8 +123,8 @@ describe('extractSkillsFromTor — cloud model', () => {
       { response: '["Python"' }, { response: ',"SQL"' }, { response: ']' },
     ]));
     const skills = await extractSkillsFromTor(TOR_TEXT, CLOUD_CONFIG);
-    expect(skills).toContain('Python');
-    expect(skills).toContain('SQL');
+    expect(skills.map(s => s.skill)).toContain('Python');
+    expect(skills.map(s => s.skill)).toContain('SQL');
   });
 
   test('handles double-encoded JSON string from cloud model', async () => {
@@ -128,8 +132,8 @@ describe('extractSkillsFromTor — cloud model', () => {
       { response: '"[\\"Python\\",\\"SQL\\"]"' },
     ]));
     const skills = await extractSkillsFromTor(TOR_TEXT, CLOUD_CONFIG);
-    expect(skills).toContain('Python');
-    expect(skills).toContain('SQL');
+    expect(skills.map(s => s.skill)).toContain('Python');
+    expect(skills.map(s => s.skill)).toContain('SQL');
   });
 
   test('throws when cloud LLM returns unparseable response', async () => {
@@ -161,7 +165,7 @@ describe('extractSkillsFromTor — guards', () => {
   test('trims whitespace from skills', async () => {
     axios.post.mockResolvedValueOnce({ data: { response: '[" Python ", " SQL "]' } });
     const skills = await extractSkillsFromTor(TOR_TEXT, LOCAL_CONFIG);
-    expect(skills[0]).toBe('Python');
+    expect(skills[0].skill).toBe('Python');
   });
 
   test('filters blank entries', async () => {
@@ -173,6 +177,6 @@ describe('extractSkillsFromTor — guards', () => {
   test('coerces non-string items to string', async () => {
     axios.post.mockResolvedValueOnce({ data: { response: '["Python",42]' } });
     const skills = await extractSkillsFromTor(TOR_TEXT, LOCAL_CONFIG);
-    expect(skills).toContain('42');
+    expect(skills.map(s => s.skill)).toContain('42');
   });
 });

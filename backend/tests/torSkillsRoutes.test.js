@@ -50,7 +50,8 @@ describe('POST /api/tors/:id/extract-skills', () => {
     const res = await request(app).post(`/api/tors/${torId}/extract-skills`);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.skills)).toBe(true);
-    expect(res.body.skills.length).toBeGreaterThan(0);
+    expect(res.body.skills[0]).toHaveProperty('skill', 'Python');
+    expect(res.body.skills[0]).toHaveProperty('weight', 3);
   });
 
   test('returns 404 for unknown tor id', async () => {
@@ -95,6 +96,7 @@ describe('GET /api/tors/:id/skills', () => {
     const res = await request(app).get(`/api/tors/${torId}/skills`);
     expect(res.status).toBe(200);
     expect(res.body.length).toBeGreaterThan(0);
+    expect(res.body[0]).toHaveProperty('weight');
   });
 
   test('returns 500 on db error', async () => {

@@ -20,7 +20,8 @@ describe('replaceTorSkills', () => {
   test('inserts skills and returns them', async () => {
     const inserted = await replaceTorSkills(torId, ['Python', 'SQL', 'Communication'], db);
     expect(inserted).toHaveLength(3);
-    expect(inserted).toContain('Python');
+    expect(inserted[0]).toHaveProperty('skill', 'Python');
+    expect(inserted[0]).toHaveProperty('weight', 3);
   });
 
   test('replaces existing skills on second call', async () => {
@@ -107,11 +108,12 @@ describe('getTorSkills', () => {
     expect(skills[2].skill).toBe('Zebra');
   });
 
-  test('each row has id, skill, extracted_at', async () => {
+  test('each row has id, skill, weight, extracted_at', async () => {
     await replaceTorSkills(torId, ['Python'], db);
     const skills = await getTorSkills(torId, db);
     expect(skills[0]).toHaveProperty('id');
-    expect(skills[0]).toHaveProperty('skill');
+    expect(skills[0]).toHaveProperty('skill', 'Python');
+    expect(skills[0]).toHaveProperty('weight', 3);
     expect(skills[0]).toHaveProperty('extracted_at');
   });
 

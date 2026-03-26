@@ -123,4 +123,16 @@ router.get('/:id/skills', async (req, res) => {
   }
 });
 
+// PUT /api/tors/:id/skills
+router.put('/:id/skills', async (req, res) => {
+  try {
+    const { skills } = req.body;
+    if (!Array.isArray(skills)) return res.status(400).json({ error: 'skills array is required' });
+    await replaceTorSkills(req.params.id, skills);
+    res.json({ success: true, skills });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

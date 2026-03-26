@@ -61,6 +61,10 @@ export async function extractTorSkills(id) {
   const res = await axios.post(`/api/tors/${id}/extract-skills`);
   return res.data;
 }
+export async function saveTorSkills(id, skills) {
+  const res = await axios.put(`/api/tors/${id}/skills`, { skills });
+  return res.data;
+}
 
 export function useTorSkills(id) {
   const [skills, setSkills] = useState([]);

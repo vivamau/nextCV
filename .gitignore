@@ -1,9 +1,6 @@
-# Data files — never commit
-backend/data/*.sqlite
-backend/data/*.db
-backend/data/*.xlsx
-backend/data/*.xls
-backend/data/lancedb/
+# Data files — keep folder but ignore sqlite/db/xlsx
+backend/data/*
+!backend/data/.gitkeep
 
 # Dependencies
 node_modules/
@@ -18,5 +15,10 @@ frontend/dist/
 coverage/
 **/coverage/
 
-# OS
+# IDE and OS
 .DS_Store
+**/.DS_Store
+.vscode/
+**/.vscode/
+.idea/
+**/.idea/

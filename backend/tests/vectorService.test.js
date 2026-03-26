@@ -175,6 +175,7 @@ describe('rankCandidatesByTor', () => {
     ];
     const candTbl = {
       filter: jest.fn().mockReturnValue({
+        limit: jest.fn().mockReturnThis(),
         execute: jest.fn().mockResolvedValue(candRows),
       }),
     };

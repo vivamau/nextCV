@@ -1,0 +1,1 @@
+ALTER TABLE tor_skills ADD COLUMN weight INTEGER DEFAULT 3;

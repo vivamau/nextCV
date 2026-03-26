@@ -1,13 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ExternalLink, Pencil, Trash2, FileText, Sparkles, Loader } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useTorSkills, extractTorSkills } from '../../../hooks/useTors';
+import { useTorSkills, extractTorSkills, saveTorSkills } from '../../../hooks/useTors';
+import SkillWeightTag from './SkillWeightTag';
 
 export default function TorCard({ tor, onEdit, onDelete }) {
   const navigate = useNavigate();
   const { skills, loading: loadingSkills, refetch } = useTorSkills(tor.id);
+  const [localSkills, setLocalSkills] = useState([]);
   const [extracting, setExtracting] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [extractError, setExtractError] = useState(null);
+
+  useEffect(() => {
+    if (skills) setLocalSkills(skills);
+  }, [skills]);
 
   const handleExtract = async (e) => {
     e.stopPropagation();
@@ -23,8 +30,20 @@ export default function TorCard({ tor, onEdit, onDelete }) {
     }
   };
 
+  const updateWeight = async (skillId, weight) => {
+    const updated = localSkills.map(s => s.id === skillId ? { ...s, weight } : s);
+    setLocalSkills(updated);
+    setSaving(true);
+    try {
+      await saveTorSkills(tor.id, updated.map(({ skill, weight }) => ({ skill, weight })));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 flex flex-col gap-3">
+    <div className="bg-white rounded-xl border border-gray-200 p-5 flex flex-col gap-3 relative">
+      {saving && <div className="absolute top-2 right-12 text-[9px] uppercase font-bold text-gray-400 flex items-center gap-1 z-10"><Loader size={8} className="animate-spin" /> saving...</div>}
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -64,12 +83,15 @@ export default function TorCard({ tor, onEdit, onDelete }) {
       )}
       {loadingSkills ? (
         <p className="text-xs text-gray-400">Loading skills...</p>
-      ) : skills.length > 0 ? (
+      ) : localSkills.length > 0 ? (
         <div className="flex flex-wrap gap-1.5">
-          {skills.map(s => (
-            <span key={s.id} className="px-2 py-0.5 bg-purple-50 text-purple-700 text-xs rounded-full border border-purple-100">
-              {s.skill}
-            </span>
+          {localSkills.map(s => (
+            <SkillWeightTag 
+              key={s.id} 
+              skill={s.skill} 
+              weight={s.weight} 
+              onWeightChange={(w) => updateWeight(s.id, w)} 
+            />
           ))}
         </div>
       ) : null}

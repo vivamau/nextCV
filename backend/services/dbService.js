@@ -17,7 +17,10 @@ function runMigrations(db = getDb()) {
     const runNext = (i) => {
       if (i >= files.length) return resolve();
       const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, files[i]), 'utf8');
-      db.exec(sql, (err) => err ? reject(err) : runNext(i + 1));
+      db.exec(sql, (err) => {
+        if (err && !err.message.includes('duplicate column name')) return reject(err);
+        runNext(i + 1);
+      });
     };
     runNext(0);
   });

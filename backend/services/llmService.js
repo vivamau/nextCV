@@ -2,8 +2,9 @@ const axios = require('axios');
 const { Ollama } = require('ollama');
 
 const SKILLS_PROMPT = (text) => `You are an HR analyst. Extract a list of required skills from the following Terms of Reference document.
-Return ONLY a valid JSON array of strings with no explanation, no markdown, no code fences — just the raw JSON array.
-Example output: ["Project Management","Data Analysis","Communication"]
+For each skill, provide an importance weight from 1 to 5 (1 = Nice to have, 3 = Core requirement, 5 = Absolute must-have).
+Return ONLY a valid JSON array of objects with "skill" and "weight" keys.
+Example output: [{"skill": "Project Management", "weight": 4}, {"skill": "Data Analysis", "weight": 3}]
 
 TOR TEXT:
 ${text}
@@ -70,8 +71,17 @@ async function extractSkillsFromTor(torText, { ollamaUrl, model, apiKey }) {
   if (!Array.isArray(skills)) throw new Error('LLM did not return a JSON array');
 
   return skills
-    .map(s => (typeof s === 'string' ? s.trim() : String(s).trim()))
-    .filter(Boolean);
+    .map(s => {
+      if (typeof s === 'string' || typeof s === 'number') return { skill: String(s).trim(), weight: 3 };
+      if (typeof s === 'object' && s.skill) {
+        return {
+          skill: String(s.skill).trim(),
+          weight: typeof s.weight === 'number' ? s.weight : 3
+        };
+      }
+      return null;
+    })
+    .filter(s => s && s.skill);
 }
 
 module.exports = { extractSkillsFromTor, isCloudModel };
