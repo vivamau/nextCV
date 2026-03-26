@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS tors (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  description TEXT,
+  va_link TEXT,
+  file_name TEXT,
+  file_content TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);

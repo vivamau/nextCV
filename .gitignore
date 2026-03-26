@@ -1,0 +1,22 @@
+# Data files — never commit
+backend/data/*.sqlite
+backend/data/*.db
+backend/data/*.xlsx
+backend/data/*.xls
+backend/data/lancedb/
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Env files
+.env
+**/.env
+
+# Build output
+frontend/dist/
+coverage/
+**/coverage/
+
+# OS
+.DS_Store

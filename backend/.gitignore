@@ -1,0 +1,8 @@
+node_modules/
+.env
+coverage/
+data/*.sqlite
+data/*.db
+data/*.xlsx
+data/*.xls
+data/lancedb/
