@@ -3,6 +3,7 @@ import { ExternalLink, Pencil, Trash2, FileText, Sparkles, Loader } from 'lucide
 import { useNavigate } from 'react-router-dom';
 import { useTorSkills, extractTorSkills, saveTorSkills } from '../../../hooks/useTors';
 import SkillWeightTag from './SkillWeightTag';
+import { formatDate } from '../../../utils/dateUtils';
 
 export default function TorCard({ tor, onEdit, onDelete }) {
   const navigate = useNavigate();
@@ -114,7 +115,7 @@ export default function TorCard({ tor, onEdit, onDelete }) {
             <ExternalLink size={12} /> VA Link
           </a>
         )}
-        <span className="ml-auto shrink-0">{new Date(tor.created_at).toLocaleDateString()}</span>
+        <span className="ml-auto shrink-0">{formatDate(tor.created_at)}</span>
       </div>
     </div>
   );

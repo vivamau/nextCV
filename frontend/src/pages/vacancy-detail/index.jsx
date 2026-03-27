@@ -11,6 +11,7 @@ import {
 import { useCandidates } from '../../hooks/useCandidates';
 import VacancyCandidateTable from './components/VacancyCandidateTable';
 import axios from 'axios';
+import { formatDate } from '../../utils/dateUtils';
 
 // --- Add Candidate Modal ---
 function AddCandidateModal({ vacancyId, hasTor, existingIds, onClose, onAdded }) {
@@ -222,12 +223,12 @@ export default function VacancyDetailPage() {
           )}
           {vacancy.opened_at && (
             <span className="flex items-center gap-1.5">
-              <Calendar size={13} /> Opened: {new Date(vacancy.opened_at).toLocaleDateString()}
+              <Calendar size={13} /> Opened: {formatDate(vacancy.opened_at)}
             </span>
           )}
           {vacancy.closed_at && (
             <span className="flex items-center gap-1.5">
-              <Calendar size={13} /> Closed: {new Date(vacancy.closed_at).toLocaleDateString()}
+              <Calendar size={13} /> Closed: {formatDate(vacancy.closed_at)}
             </span>
           )}
         </div>

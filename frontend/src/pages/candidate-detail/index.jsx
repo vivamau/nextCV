@@ -3,6 +3,7 @@ import { ArrowLeft, User, Sparkles, Loader, Link as LinkIcon } from 'lucide-reac
 import { useState } from 'react';
 import { useCandidate, extractCandidateSkills, extractCandidateLinks } from '../../hooks/useCandidates';
 import VoteBadge from '../../commoncomponents/VoteBadge';
+import { formatDate } from '../../utils/dateUtils';
 
 function Field({ label, value }) {
   return (
@@ -157,7 +158,7 @@ export default function CandidateDetailPage() {
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-[10px] text-gray-400 uppercase font-semibold">Added At</p>
-                    <p className="text-xs text-gray-600">{new Date(v.added_at).toLocaleDateString()}</p>
+                    <p className="text-xs text-gray-600">{formatDate(v.added_at)}</p>
                   </div>
                 </div>
               </div>

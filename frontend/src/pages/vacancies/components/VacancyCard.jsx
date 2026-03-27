@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Briefcase, Calendar, FileText, Pencil, Trash2, Users } from 'lucide-react';
+import { formatDate } from '../../../utils/dateUtils';
 
 function StatusBadge({ openedAt, closedAt }) {
   const now = new Date();
@@ -56,7 +57,7 @@ export default function VacancyCard({ vacancy, onEdit, onDelete, onClick }) {
       <div className="flex items-center gap-4 text-xs text-gray-400 mt-auto pt-1 border-t border-gray-50">
         {vacancy.opened_at && (
           <span className="flex items-center gap-1">
-            <Calendar size={12} /> {new Date(vacancy.opened_at).toLocaleDateString()}
+            <Calendar size={12} /> {formatDate(vacancy.opened_at)}
           </span>
         )}
         <span className="ml-auto flex items-center gap-1">
