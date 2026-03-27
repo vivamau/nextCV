@@ -133,7 +133,7 @@ export default function CandidateDetailPage() {
                     <div className="mt-1.5 flex flex-wrap gap-2 items-center">
                       {v.skills_match_score && (
                         <span className="text-[10px] font-bold px-1.5 py-0.5 rounded border border-indigo-100 bg-indigo-50 text-indigo-600">
-                          {v.skills_match_score}
+                          Raw: {v.skills_match_score}
                         </span>
                       )}
                       {v.similarity !== null && (

@@ -205,15 +205,30 @@ export default function VacancyCandidateTable({ candidates, ranking, onRemove, r
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-1 max-w-[250px]">
-                    {c.skill_match_count > 0 ? (
-                      c.matched_skills.split(', ').map(s => (
-                        <span key={s} className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 whitespace-nowrap">
-                          {s}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-gray-300 text-[10px] italic">No skill match found</span>
-                    )}
+                    {(() => {
+                      const skills = Array.isArray(c.matched_skills)
+                        ? c.matched_skills
+                        : typeof c.matched_skills === 'string'
+                          ? c.matched_skills.split(',').map(s => ({ skill: s.trim(), llm_extracted: 0 }))
+                          : [];
+                      return skills.length > 0 ? (
+                        skills.map((skillObj, index) => (
+                          <span
+                            key={`${skillObj.skill}-${index}`}
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
+                              skillObj.llm_extracted
+                                ? 'bg-amber-100 text-amber-700'
+                                : 'bg-purple-100 text-purple-700'
+                            }`}
+                            title={skillObj.llm_extracted ? 'AI-extracted skill' : 'Manually added skill'}
+                          >
+                            {skillObj.skill}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-gray-300 text-[10px] italic">No skill match found</span>
+                      );
+                    })()}
                   </div>
                 </td>
                 <td className="px-4 py-3 text-right">

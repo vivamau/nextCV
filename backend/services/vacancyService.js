@@ -115,32 +115,42 @@ function getCandidatesForVacancy(vacancyId, db = getDb()) {
       const candIds = candidates.map(c => c.id);
       const allCandSkills = await new Promise((res, rej) => {
         const placeholders = candIds.map(() => '?').join(',');
-        db.all(`SELECT candidate_id, skill FROM candidate_skills WHERE candidate_id IN (${placeholders})`, candIds, (err, rows) =>
+        db.all(`SELECT candidate_id, skill, llm_extracted FROM candidate_skills WHERE candidate_id IN (${placeholders})`, candIds, (err, rows) =>
           err ? rej(err) : res(rows)
         );
       });
 
-      // 5. Group skills by candidate
+      // 5. Group skills by candidate (preserving llm_extracted field)
       const skillsByCand = allCandSkills.reduce((acc, row) => {
         if (!acc[row.candidate_id]) acc[row.candidate_id] = [];
-        acc[row.candidate_id].push(row.skill);
+        acc[row.candidate_id].push({ skill: row.skill, llm_extracted: row.llm_extracted });
         return acc;
       }, {});
 
       // 6. Compute overlap and weighted score
       const augmented = candidates.map(c => {
         const cSkills = skillsByCand[c.id] || [];
-        const matched = getSkillOverlap(cSkills, torSkillNames);
+        const cSkillNames = cSkills.map(s => s.skill);
+        const matchedSkillNames = getSkillOverlap(cSkillNames, torSkillNames);
+        
+        // Create matched skills array with llm_extracted status
+        const matchedSkills = matchedSkillNames.map(skillName => {
+          const skillObj = cSkills.find(s => s.skill === skillName);
+          return {
+            skill: skillName,
+            llm_extracted: skillObj ? skillObj.llm_extracted : 0
+          };
+        });
         
         // Calculate weighted score sum
-        const weightedScore = matched.reduce((sum, s) => {
+        const weightedScore = matchedSkillNames.reduce((sum, s) => {
           return sum + (weightMap[s.toLowerCase().trim()] || 0);
         }, 0);
 
         return {
           ...c,
-          skill_match_count: matched.length,
-          matched_skills: matched.join(', '),
+          skill_match_count: matchedSkillNames.length,
+          matched_skills: matchedSkills, // Now an array of objects instead of comma-separated string
           weighted_score: weightedScore
         };
       });
