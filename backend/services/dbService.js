@@ -56,22 +56,41 @@ function upsertResume(candidateId, resumeText, db = getDb()) {
   });
 }
 
-function insertSkills(candidateId, skills, db = getDb()) {
+function insertSkills(candidateId, skills, llmExtracted = false, db = getDb()) {
   return new Promise((resolve, reject) => {
     if (!skills || skills.length === 0) return resolve();
-    db.run('DELETE FROM candidate_skills WHERE candidate_id = ?', [candidateId], (err) => {
+    
+    // Get existing skills to preserve their llm_extracted values
+    db.all('SELECT skill, llm_extracted FROM candidate_skills WHERE candidate_id = ?', [candidateId], (err, existingSkills) => {
       if (err) return reject(err);
-      const stmt = db.prepare(
-        'INSERT INTO candidate_skills (candidate_id, skill) VALUES (?, ?)',
-        (prepErr) => { if (prepErr) return reject(prepErr); }
-      );
-      let pending = skills.length;
-      let failed = false;
-      skills.forEach((skill) => {
-        stmt.run([candidateId, skill.trim()], (runErr) => {
-          if (failed) return;
-          if (runErr) { failed = true; return reject(runErr); }
-          if (--pending === 0) { stmt.finalize(); resolve(); }
+      
+      // Create a map of existing skills to their llm_extracted values
+      const existingSkillsMap = {};
+      existingSkills.forEach(s => {
+        existingSkillsMap[s.skill.toLowerCase()] = s.llm_extracted;
+      });
+      
+      // Delete all skills for this candidate
+      db.run('DELETE FROM candidate_skills WHERE candidate_id = ?', [candidateId], (delErr) => {
+        if (delErr) return reject(delErr);
+        
+        const stmt = db.prepare(
+          'INSERT INTO candidate_skills (candidate_id, skill, llm_extracted) VALUES (?, ?, ?)',
+          (prepErr) => { if (prepErr) return reject(prepErr); }
+        );
+        let pending = skills.length;
+        let failed = false;
+        skills.forEach((skill) => {
+          const skillLower = skill.trim().toLowerCase();
+          // Preserve existing llm_extracted value if skill already exists
+          const preservedLlmExtracted = existingSkillsMap.hasOwnProperty(skillLower)
+            ? existingSkillsMap[skillLower]
+            : (llmExtracted ? 1 : 0);
+          stmt.run([candidateId, skill.trim(), preservedLlmExtracted], (runErr) => {
+            if (failed) return;
+            if (runErr) { failed = true; return reject(runErr); }
+            if (--pending === 0) { stmt.finalize(); resolve(); }
+          });
         });
       });
     });
@@ -89,9 +108,9 @@ function getResumeByCandidate(candidateId, db = getDb()) {
 
 function getSkillsByCandidate(candidateId, db = getDb()) {
   return new Promise((resolve, reject) => {
-    db.all('SELECT skill FROM candidate_skills WHERE candidate_id = ? ORDER BY skill', [candidateId], (err, rows) => {
+    db.all('SELECT skill, llm_extracted FROM candidate_skills WHERE candidate_id = ? ORDER BY skill', [candidateId], (err, rows) => {
       if (err) return reject(err);
-      resolve(rows.map(r => r.skill));
+      resolve(rows.map(r => ({ skill: r.skill, llmExtracted: !!r.llm_extracted })));
     });
   });
 }

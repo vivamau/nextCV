@@ -55,7 +55,7 @@ router.get('/:id', async (req, res) => {
         );
       });
 
-      const matched = getSkillOverlap(skills, vTorSkills);
+      const matched = getSkillOverlap(skills.map(s => s.skill), vTorSkills);
       return { ...v, similarity, matched_skills: matched.join(', ') };
     }));
 
@@ -118,7 +118,7 @@ router.post('/:id/index', async (req, res) => {
     }
     
     const skills = await getSkillsByCandidate(id);
-    await indexCandidate(id, resume.resume_text, skills.join(', '));
+    await indexCandidate(id, resume.resume_text, skills.map(s => s.skill).join(', '));
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -153,7 +153,7 @@ router.post('/:id/extract-skills', async (req, res) => {
       return res.status(502).json({ error: `LLM error: ${llmErr.message}` });
     }
 
-    await insertSkills(id, skills);
+    await insertSkills(id, skills, true);
     // Explicitly re-index after extraction so search picks up new skills
     await indexCandidate(id, resume.resume_text, skills.join(', '));
     res.json({ skills });

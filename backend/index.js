@@ -4,6 +4,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const { runMigrations } = require('./services/dbService');
+const { waitForDbReady } = require('./config/db');
 const candidateRoutes = require('./routes/candidateRoutes');
 const torRoutes = require('./routes/torRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
@@ -23,6 +24,7 @@ app.use('/api/vacancies', vacancyRoutes);
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 async function start() {
+  await waitForDbReady();
   await runMigrations();
   app.listen(PORT, () => console.log(`Backend running on http://localhost:${PORT}`));
 }

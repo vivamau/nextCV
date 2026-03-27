@@ -122,8 +122,16 @@ describe('insertSkills', () => {
     await insertSkills(candidateId, ['Python', 'SQL', 'Communication'], db);
     const skills = await getSkillsByCandidate(candidateId, db);
     expect(skills).toHaveLength(3);
-    expect(skills).toContain('Python');
-    expect(skills).toContain('SQL');
+    expect(skills.map(s => s.skill)).toContain('Python');
+    expect(skills.map(s => s.skill)).toContain('SQL');
+    expect(skills.every(s => s.llmExtracted === false)).toBe(true);
+  });
+
+  test('inserts skills with llm_extracted flag', async () => {
+    await insertSkills(candidateId, ['Python', 'SQL'], true, db);
+    const skills = await getSkillsByCandidate(candidateId, db);
+    expect(skills).toHaveLength(2);
+    expect(skills.every(s => s.llmExtracted === true)).toBe(true);
   });
 
   test('replaces skills on re-import', async () => {
@@ -131,7 +139,7 @@ describe('insertSkills', () => {
     await insertSkills(candidateId, ['Java'], db);
     const skills = await getSkillsByCandidate(candidateId, db);
     expect(skills).toHaveLength(1);
-    expect(skills[0]).toBe('Java');
+    expect(skills[0].skill).toBe('Java');
   });
 
   test('handles empty skills array gracefully', async () => {
@@ -190,7 +198,7 @@ describe('getSkillsByCandidate', () => {
   test('returns sorted skills', async () => {
     await insertSkills(candidateId, ['Zebra', 'Apple', 'Mango'], db);
     const skills = await getSkillsByCandidate(candidateId, db);
-    expect(skills[0]).toBe('Apple');
+    expect(skills[0].skill).toBe('Apple');
     expect(skills[2]).toBe('Zebra');
   });
 });

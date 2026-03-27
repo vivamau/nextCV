@@ -174,9 +174,17 @@ export default function CandidateDetailPage() {
         </div>
         {skills.length > 0 ? (
           <div className="flex flex-wrap gap-2">
-            {skills.map(skill => (
-              <span key={skill} className="px-2.5 py-1 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-100">
-                {skill}
+            {skills.map((s, idx) => (
+              <span
+                key={idx}
+                className={`px-2.5 py-1 text-xs rounded-full border ${
+                  s.llmExtracted
+                    ? 'bg-green-50 text-green-700 border-green-100'
+                    : 'bg-blue-50 text-blue-700 border-blue-100'
+                }`}
+              >
+                {s.skill}
+                {s.llmExtracted && <span className="ml-1.5 text-[9px] font-semibold bg-green-200 text-green-800 px-1 rounded">AI</span>}
               </span>
             ))}
           </div>
