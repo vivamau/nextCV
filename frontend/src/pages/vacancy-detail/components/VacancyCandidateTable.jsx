@@ -113,11 +113,11 @@ export default function VacancyCandidateTable({ candidates, ranking, onRemove, r
         <table className="min-w-full text-sm">
         <thead className="bg-gray-50 border-b border-gray-100">
           <tr>
-            <th 
+            <th
               className="px-4 py-3 text-left text-[10px] font-bold text-gray-400 border-b-2 border-transparent hover:border-gray-200 cursor-pointer uppercase tracking-wider group"
-              onClick={() => requestSort('job_application')}
+              onClick={() => requestSort('id')}
             >
-              <div className="flex items-center">Candidate <SortIcon colKey="job_application" /></div>
+              <div className="flex items-center">ID <SortIcon colKey="id" /></div>
             </th>
             <th 
               className="px-4 py-3 text-left text-[10px] font-bold text-gray-400 border-b-2 border-transparent hover:border-gray-200 cursor-pointer uppercase tracking-wider group"
@@ -172,7 +172,7 @@ export default function VacancyCandidateTable({ candidates, ranking, onRemove, r
                     <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
                       <User size={14} className="text-blue-500" />
                     </div>
-                    <span className="font-medium text-blue-700 hover:underline">{c.job_application}</span>
+                    <span className="font-medium text-blue-700 hover:underline">Candidate #{c.id}</span>
                   </div>
                 </td>
                 <td className="px-4 py-3 text-gray-500">{c.type}</td>
