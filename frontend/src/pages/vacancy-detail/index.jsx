@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft, Briefcase, Calendar, FileText, UserPlus,
   X, Search, RefreshCw,
@@ -214,7 +214,10 @@ export default function VacancyDetailPage() {
         <div className="mt-4 flex flex-wrap gap-4 text-xs text-gray-500">
           {vacancy.tor_name && (
             <span className="flex items-center gap-1.5">
-              <FileText size={13} /> TOR: {vacancy.tor_name}
+              <FileText size={13} /> TOR:{' '}
+              <Link to={`/tors/${vacancy.tor_id}`} className="text-blue-600 hover:text-blue-800 hover:underline">
+                {vacancy.tor_name}
+              </Link>
             </span>
           )}
           {vacancy.opened_at && (

@@ -9,11 +9,12 @@ jest.mock('../config/db', () => ({ getDb: () => mockDb }));
 const {
   runMigrations, insertCandidate, upsertResume, insertSkills, clearCandidates,
 } = require('../services/dbService');
-const { indexCandidate } = require('../services/vectorService');
+const { indexCandidate, rankCandidatesByTor } = require('../services/vectorService');
 const candidateRoutes = require('../routes/candidateRoutes');
 
 jest.mock('../services/vectorService', () => ({
-  indexCandidate: jest.fn().mockResolvedValue(true)
+  indexCandidate: jest.fn().mockResolvedValue(true),
+  rankCandidatesByTor: jest.fn().mockResolvedValue([])
 }));
 
 const app = express();
@@ -164,7 +165,14 @@ describe('POST /api/candidates/index-all', () => {
     const res = await request(app).post('/api/candidates/index-all');
     expect(res.status).toBe(200);
     expect(res.body.indexed).toBe(1); // Alice has a resume, Bob doesn't
-    expect(indexCandidate).toHaveBeenCalledWith(aliceId, 'Alice resume text');
+    expect(indexCandidate).toHaveBeenCalledWith(aliceId, 'Alice resume text', 'Python,SQL');
+  });
+
+  test('returns 500 on error during indexing', async () => {
+    indexCandidate.mockRejectedValueOnce(new Error('Indexing failed'));
+    const res = await request(app).post('/api/candidates/index-all');
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Indexing failed');
   });
 });
 
@@ -177,7 +185,7 @@ describe('POST /api/candidates/:id/index', () => {
   test('returns 200 and indexes specific candidate', async () => {
     const res = await request(app).post(`/api/candidates/${aliceId}/index`);
     expect(res.status).toBe(200);
-    expect(indexCandidate).toHaveBeenCalledWith(aliceId, 'Alice resume text');
+    expect(indexCandidate).toHaveBeenCalledWith(aliceId, 'Alice resume text', 'Python, SQL');
   });
 
   test('returns 400 if candidate lacks resume data', async () => {
@@ -192,6 +200,118 @@ describe('POST /api/candidates/:id/index', () => {
   test('returns 404 for non-existent candidate', async () => {
     const res = await request(app).post('/api/candidates/99999/index');
     expect(res.status).toBe(404);
+  });
+
+  test('returns 500 on error during indexing', async () => {
+    indexCandidate.mockRejectedValueOnce(new Error('Database error'));
+    const res = await request(app).post(`/api/candidates/${aliceId}/index`);
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('Database error');
+  });
+});
+
+// --- GET /api/candidates/:id with vacancy augmentation ---
+describe('GET /api/candidates/:id with vacancy augmentation', () => {
+  let torId, vacancyId;
+
+  beforeEach(async () => {
+    // Create a TOR and a vacancy linked to it
+    const torResult = await new Promise((resolve, reject) => {
+      mockDb.run(
+        'INSERT INTO tors (name, description) VALUES (?, ?)',
+        ['Test TOR', 'TOR description'],
+        function(err) {
+          if (err) reject(err);
+          else resolve(this.lastID);
+        }
+      );
+    });
+    torId = torResult;
+
+    await new Promise((resolve, reject) => {
+      mockDb.run(
+        'INSERT INTO tor_skills (tor_id, skill, weight) VALUES (?, ?, ?)',
+        [torId, 'Python', 1.0],
+        (err) => err ? reject(err) : resolve()
+      );
+    });
+
+    vacancyId = await new Promise((resolve, reject) => {
+      mockDb.run(
+        'INSERT INTO vacancies (title, tor_id) VALUES (?, ?)',
+        ['Test Vacancy', torId],
+        function(err) {
+          if (err) reject(err);
+          else resolve(this.lastID);
+        }
+      );
+    });
+
+    // Link candidate to vacancy
+    await new Promise((resolve, reject) => {
+      mockDb.run(
+        'INSERT INTO candidates_to_vacancies (vacancy_id, candidate_id) VALUES (?, ?)',
+        [vacancyId, aliceId],
+        (err) => err ? reject(err) : resolve()
+      );
+    });
+  });
+
+  test('augments vacancies with similarity and matched skills', async () => {
+    rankCandidatesByTor.mockResolvedValueOnce([{ candidate_id: aliceId, similarity: 85 }]);
+    const res = await request(app).get(`/api/candidates/${aliceId}`);
+    expect(res.status).toBe(200);
+    expect(res.body.vacancies).toHaveLength(1);
+    expect(res.body.vacancies[0].similarity).toBe(85);
+    expect(res.body.vacancies[0].matched_skills).toBe('Python');
+    expect(rankCandidatesByTor).toHaveBeenCalledWith(torId, [aliceId]);
+  });
+
+  test('handles vacancy without TOR', async () => {
+    // Create vacancy without TOR
+    const noTorVacancyId = await new Promise((resolve, reject) => {
+      mockDb.run(
+        'INSERT INTO vacancies (title, tor_id) VALUES (?, ?)',
+        ['No TOR Vacancy', null],
+        function(err) {
+          if (err) reject(err);
+          else resolve(this.lastID);
+        }
+      );
+    });
+
+    await new Promise((resolve, reject) => {
+      mockDb.run(
+        'INSERT INTO candidates_to_vacancies (vacancy_id, candidate_id) VALUES (?, ?)',
+        [noTorVacancyId, aliceId],
+        (err) => err ? reject(err) : resolve()
+      );
+    });
+
+    const res = await request(app).get(`/api/candidates/${aliceId}`);
+    expect(res.status).toBe(200);
+    const noTorVacancy = res.body.vacancies.find(v => v.id === noTorVacancyId);
+    expect(noTorVacancy.similarity).toBeNull();
+    expect(noTorVacancy.matched_skills).toBe('');
+    expect(rankCandidatesByTor).not.toHaveBeenCalledWith(noTorVacancyId, [aliceId]);
+  });
+
+  test('handles empty similarity result', async () => {
+    rankCandidatesByTor.mockResolvedValueOnce([]);
+    const res = await request(app).get(`/api/candidates/${aliceId}`);
+    expect(res.status).toBe(200);
+    expect(res.body.vacancies[0].similarity).toBeNull();
+  });
+
+  test('handles no matched skills', async () => {
+    // Update candidate skills to not match TOR skills
+    await new Promise((resolve, reject) => {
+      mockDb.run('DELETE FROM candidate_skills WHERE candidate_id = ?', [aliceId], (err) => err ? reject(err) : resolve());
+    });
+    rankCandidatesByTor.mockResolvedValueOnce([{ candidate_id: aliceId, similarity: 50 }]);
+    const res = await request(app).get(`/api/candidates/${aliceId}`);
+    expect(res.status).toBe(200);
+    expect(res.body.vacancies[0].matched_skills).toBe('');
   });
 });
 
