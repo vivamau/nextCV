@@ -66,7 +66,10 @@ router.post('/:id/candidates/add-all', async (req, res) => {
   try {
     const count = await addAllCandidatesToVacancy(req.params.id);
     res.json({ ok: true, count });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    console.error('Error in add-all route:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.get('/:id/candidates', async (req, res) => {

@@ -175,15 +175,62 @@ function getVacanciesForCandidate(candidateId, db = getDb()) {
 
 function addAllCandidatesToVacancy(vacancyId, db = getDb()) {
   return new Promise((resolve, reject) => {
-    db.run(
-      `INSERT OR IGNORE INTO candidates_to_vacancies (candidate_id, vacancy_id)
-       SELECT id, ? FROM candidates`,
-      [vacancyId],
-      function (err) {
-        if (err) return reject(err);
-        resolve(this.changes);
+    console.log('Adding all candidates to vacancy:', vacancyId);
+    
+    // First, get all candidate IDs
+    db.all('SELECT id FROM candidates', [], (err, candidates) => {
+      if (err) {
+        console.error('Error fetching candidates:', err);
+        return reject(err);
       }
-    );
+      
+      console.log('Total candidates found:', candidates.length);
+      
+      if (candidates.length === 0) {
+        return resolve(0);
+      }
+      
+      // Then insert each candidate one by one (or use a transaction for better performance)
+      let inserted = 0;
+      const total = candidates.length;
+      
+      // Use a transaction for better performance and data integrity
+      db.serialize(() => {
+        db.run('BEGIN TRANSACTION', (err) => {
+          if (err) {
+            console.error('Error starting transaction:', err);
+            return reject(err);
+          }
+          
+          const stmt = db.prepare(
+            'INSERT OR IGNORE INTO candidates_to_vacancies (candidate_id, vacancy_id) VALUES (?, ?)'
+          );
+          
+          candidates.forEach((candidate) => {
+            stmt.run(candidate.id, vacancyId, (err) => {
+              if (err) {
+                console.error('Error inserting candidate:', candidate.id, err);
+              } else {
+                inserted++;
+              }
+              
+              // Check if all candidates have been processed
+              if (inserted === total) {
+                stmt.finalize();
+                db.run('COMMIT', (commitErr) => {
+                  if (commitErr) {
+                    console.error('Error committing transaction:', commitErr);
+                    return reject(commitErr);
+                  }
+                  console.log('Transaction committed, inserted:', inserted);
+                  resolve(inserted);
+                });
+              }
+            });
+          });
+        });
+      });
+    });
   });
 }
 
