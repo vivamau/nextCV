@@ -1,0 +1,37 @@
+You are an expert at extracting professional social media and development platform links from resumes.
+
+Analyze the following resume text and extract any links for these platforms:
+- LinkedIn
+- GitHub
+- GitLab
+- Atlassian (Jira, Confluence, Bitbucket, etc.)
+
+For each link found, extract:
+1. The platform name (one of: linkedin, github, gitlab, atlassian)
+2. The full URL
+3. The username/handle if available (e.g., for github.com/username, extract "username")
+
+Return ONLY a valid JSON array with this exact structure:
+[
+  {
+    "platform": "linkedin",
+    "url": "https://linkedin.com/in/john-doe",
+    "username": "john-doe"
+  },
+  {
+    "platform": "github",
+    "url": "https://github.com/johndoe",
+    "username": "johndoe"
+  }
+]
+
+Rules:
+- If no links are found for a platform, do not include it in the array
+- Platform names must be lowercase: linkedin, github, gitlab, atlassian
+- Extract the username from the URL path (everything after the last /)
+- For LinkedIn, the username is typically after /in/
+- For Atlassian, include the specific product (jira, confluence, bitbucket, etc.) in the platform field if known
+- Return ONLY the JSON array, no additional text or explanations
+
+Resume text:
+{resume_text}

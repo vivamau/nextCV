@@ -7,7 +7,7 @@ const PROMPTS_DIR = path.join(__dirname, '../prompts');
 
 function loadPrompt(filename, text) {
   const template = fs.readFileSync(path.join(PROMPTS_DIR, filename), 'utf8');
-  return template.replace('{{text}}', text);
+  return template.replace('{{text}}', text).replace('{resume_text}', text);
 }
 
 /**
@@ -98,4 +98,42 @@ async function extractSkillsFromTor(torText, config) {
     .filter(s => s && s.skill);
 }
 
-module.exports = { extractSkillsFromTor, extractSkillsFromResume, isCloudModel };
+async function extractLinksFromResume(resumeText, config) {
+  if (!resumeText || !resumeText.trim()) throw new Error('Resume text is empty');
+
+  const prompt = loadPrompt('candidate_links.txt', resumeText);
+  const raw = await callLLM(prompt, config);
+
+  let links;
+  try {
+    let parsed = JSON.parse(raw);
+    if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+    links = parsed;
+  } catch (_e) {
+    const match = raw.match(/\[[\s\S]*\]/);
+    if (!match) throw new Error(`LLM returned unparseable response: ${raw.substring(0, 200)}`);
+    links = JSON.parse(match[0]);
+  }
+
+  if (!Array.isArray(links)) throw new Error('LLM did not return a JSON array');
+
+  // Validate and normalize the links
+  return links
+    .map(link => {
+      if (typeof link !== 'object' || !link) return null;
+      if (!link.platform || !link.url) return null;
+      
+      const validPlatforms = ['linkedin', 'github', 'gitlab', 'atlassian'];
+      const platform = String(link.platform).toLowerCase().trim();
+      if (!validPlatforms.includes(platform)) return null;
+
+      return {
+        platform,
+        url: String(link.url).trim(),
+        username: link.username ? String(link.username).trim() : null
+      };
+    })
+    .filter(link => link && link.url && link.platform);
+}
+
+module.exports = { extractSkillsFromTor, extractSkillsFromResume, extractLinksFromResume, isCloudModel };

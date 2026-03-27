@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { getCandidates, getCandidateById, getStats, getResumeByCandidate, getSkillsByCandidate, getAllCandidatesForIndexing, insertSkills } = require('../services/dbService');
+const { getCandidates, getCandidateById, getStats, getResumeByCandidate, getSkillsByCandidate, getAllCandidatesForIndexing, insertSkills, insertLinks, getLinksByCandidate } = require('../services/dbService');
 const { indexCandidate, rankCandidatesByTor } = require('../services/vectorService');
 const { getVacanciesForCandidate } = require('../services/vacancyService');
-const { extractSkillsFromResume } = require('../services/llmService');
+const { extractSkillsFromResume, extractLinksFromResume } = require('../services/llmService');
 const { getAllSettings } = require('../services/settingsService');
 const { getSkillOverlap } = require('../utilities/skillMatcher');
 const { getDb } = require('../config/db');
@@ -157,6 +157,55 @@ router.post('/:id/extract-skills', async (req, res) => {
     // Explicitly re-index after extraction so search picks up new skills
     await indexCandidate(id, resume.resume_text, skills.join(', '));
     res.json({ skills });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/candidates/:id/extract-links
+router.post('/:id/extract-links', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const cand = await getCandidateById(id);
+    if (!cand) return res.status(404).json({ error: 'Not found' });
+
+    const resume = await getResumeByCandidate(id);
+    if (!resume || !resume.resume_text || !resume.resume_text.trim()) {
+      return res.status(400).json({ error: 'Candidate does not have resume text to analyse' });
+    }
+
+    const settings = await getAllSettings();
+    if (!settings.llm_provider || settings.llm_provider === 'none') {
+      return res.status(422).json({ error: 'No LLM provider configured. Go to Settings to select one.' });
+    }
+
+    let links;
+    try {
+      links = await extractLinksFromResume(resume.resume_text, {
+        ollamaUrl: settings.ollama_url || 'http://localhost:11434',
+        model: settings.llm_model,
+        apiKey: settings.ollama_api_key || null,
+      });
+    } catch (llmErr) {
+      return res.status(502).json({ error: `LLM error: ${llmErr.message}` });
+    }
+
+    await insertLinks(id, links);
+    res.json({ links });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/candidates/:id/links
+router.get('/:id/links', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const cand = await getCandidateById(id);
+    if (!cand) return res.status(404).json({ error: 'Not found' });
+
+    const links = await getLinksByCandidate(id);
+    res.json(links);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

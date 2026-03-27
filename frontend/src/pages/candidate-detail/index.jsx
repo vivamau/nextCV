@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Sparkles, Loader } from 'lucide-react';
+import { ArrowLeft, User, Sparkles, Loader, Link as LinkIcon } from 'lucide-react';
 import { useState } from 'react';
-import { useCandidate, extractCandidateSkills } from '../../hooks/useCandidates';
+import { useCandidate, extractCandidateSkills, extractCandidateLinks } from '../../hooks/useCandidates';
 import VoteBadge from '../../commoncomponents/VoteBadge';
 
 function Field({ label, value }) {
@@ -16,13 +16,14 @@ function Field({ label, value }) {
 export default function CandidateDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { candidate, resume, skills, vacancies, loading, error, refetch } = useCandidate(id);
+  const { candidate, resume, skills, vacancies, links, loading, error, refetch, refetchLinks } = useCandidate(id);
 
-  const [extracting, setExtracting] = useState(false);
+  const [extractingSkills, setExtractingSkills] = useState(false);
+  const [extractingLinks, setExtractingLinks] = useState(false);
   const [extractError, setExtractError] = useState(null);
 
   const handleExtractSkills = async () => {
-    setExtracting(true);
+    setExtractingSkills(true);
     setExtractError(null);
     try {
       await extractCandidateSkills(id);
@@ -30,7 +31,20 @@ export default function CandidateDetailPage() {
     } catch (e) {
       setExtractError(e.response?.data?.error || e.message);
     } finally {
-      setExtracting(false);
+      setExtractingSkills(false);
+    }
+  };
+
+  const handleExtractLinks = async () => {
+    setExtractingLinks(true);
+    setExtractError(null);
+    try {
+      await extractCandidateLinks(id);
+      await refetchLinks();
+    } catch (e) {
+      setExtractError(e.response?.data?.error || e.message);
+    } finally {
+      setExtractingLinks(false);
     }
   };
 
@@ -65,14 +79,24 @@ export default function CandidateDetailPage() {
               </div>
             </div>
           </div>
-          <button
-            onClick={handleExtractSkills}
-            disabled={extracting}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 rounded-md text-gray-600 hover:text-purple-700 hover:border-purple-300 disabled:opacity-40 transition-colors"
-          >
-            {extracting ? <Loader size={14} className="animate-spin" /> : <Sparkles size={14} />}
-            Extract Skills
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExtractSkills}
+              disabled={extractingSkills}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 rounded-md text-gray-600 hover:text-purple-700 hover:border-purple-300 disabled:opacity-40 transition-colors"
+            >
+              {extractingSkills ? <Loader size={14} className="animate-spin" /> : <Sparkles size={14} />}
+              Extract Skills
+            </button>
+            <button
+              onClick={handleExtractLinks}
+              disabled={extractingLinks}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 rounded-md text-gray-600 hover:text-blue-700 hover:border-blue-300 disabled:opacity-40 transition-colors"
+            >
+              {extractingLinks ? <Loader size={14} className="animate-spin" /> : <LinkIcon size={14} />}
+              Extract Links
+            </button>
+          </div>
         </div>
 
         <dl className="grid grid-cols-2 gap-5 mb-6">
@@ -158,6 +182,40 @@ export default function CandidateDetailPage() {
           </div>
         ) : (
           <p className="text-sm text-gray-400 italic">No skills extracted. Click "Extract Skills" in the header to parse the resume.</p>
+        )}
+      </div>
+ 
+      {/* Links */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-700">Links</h3>
+          {extractError && <span className="text-xs text-red-500">{extractError}</span>}
+        </div>
+        {links.length > 0 ? (
+          <div className="space-y-2">
+            {links.map(link => (
+              <a
+                key={link.id}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:border-blue-200 hover:bg-blue-50 transition-colors group"
+              >
+                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                  <LinkIcon size={16} className="text-gray-500 group-hover:text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-800 capitalize">{link.platform}</p>
+                  {link.username && (
+                    <p className="text-xs text-gray-500">@{link.username}</p>
+                  )}
+                </div>
+                <span className="text-xs text-blue-600 group-hover:text-blue-700">Open →</span>
+              </a>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400 italic">No links extracted. Click "Extract Links" in the header to parse resume.</p>
         )}
       </div>
 

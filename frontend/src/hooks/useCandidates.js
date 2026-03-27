@@ -29,6 +29,7 @@ export function useCandidate(id) {
   const [resume, setResume] = useState(null);
   const [skills, setSkills] = useState([]);
   const [vacancies, setVacancies] = useState([]);
+  const [links, setLinks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -51,15 +52,28 @@ export function useCandidate(id) {
       .finally(() => setLoading(false));
   }, [id]);
 
+  const fetchLinks = useCallback(() => {
+    if (!id) return;
+    axios.get(`/api/candidates/${id}/links`)
+      .then(res => setLinks(res.data || []))
+      .catch(e => console.error('Failed to fetch links:', e.message));
+  }, [id]);
+
   useEffect(() => {
     fetch();
-  }, [id, fetch]);
+    fetchLinks();
+  }, [id, fetch, fetchLinks]);
 
-  return { candidate, resume, skills, vacancies, loading, error, refetch: fetch };
+  return { candidate, resume, skills, vacancies, links, loading, error, refetch: fetch, refetchLinks: fetchLinks };
 }
 
 export async function extractCandidateSkills(id) {
   const res = await axios.post(`/api/candidates/${id}/extract-skills`);
+  return res.data;
+}
+
+export async function extractCandidateLinks(id) {
+  const res = await axios.post(`/api/candidates/${id}/extract-links`);
   return res.data;
 }
 

@@ -198,9 +198,40 @@ function getAllTorsForIndexing(db = getDb()) {
   });
 }
 
+function insertLinks(candidateId, links, db = getDb()) {
+  return new Promise((resolve, reject) => {
+    if (!links || links.length === 0) return resolve();
+    db.run('DELETE FROM candidate_links WHERE candidate_id = ?', [candidateId], (err) => {
+      if (err) return reject(err);
+      const stmt = db.prepare(
+        'INSERT OR REPLACE INTO candidate_links (candidate_id, platform, url, username) VALUES (?, ?, ?, ?)',
+        (prepErr) => { if (prepErr) return reject(prepErr); }
+      );
+      let pending = links.length;
+      let failed = false;
+      links.forEach((link) => {
+        stmt.run([candidateId, link.platform, link.url, link.username || null], (runErr) => {
+          if (failed) return;
+          if (runErr) { failed = true; return reject(runErr); }
+          if (--pending === 0) { stmt.finalize(); resolve(); }
+        });
+      });
+    });
+  });
+}
+
+function getLinksByCandidate(candidateId, db = getDb()) {
+  return new Promise((resolve, reject) => {
+    db.all('SELECT * FROM candidate_links WHERE candidate_id = ?', [candidateId], (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows || []);
+    });
+  });
+}
+
 module.exports = {
-  runMigrations, insertCandidate, upsertResume, insertSkills,
-  getResumeByCandidate, getSkillsByCandidate,
+  runMigrations, insertCandidate, upsertResume, insertSkills, insertLinks,
+  getResumeByCandidate, getSkillsByCandidate, getLinksByCandidate,
   getCandidates, getCandidateById, getStats, clearCandidates,
   getAllCandidatesForIndexing, getAllTorsForIndexing,
 };
