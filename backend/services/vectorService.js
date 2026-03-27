@@ -28,9 +28,12 @@ async function upsertRecord(tableName, record) {
   }
 }
 
-async function indexCandidate(candidateId, resumeText) {
+async function indexCandidate(candidateId, resumeText, skillsText = '') {
   if (!resumeText || !resumeText.trim()) return false;
-  const vector = await generateEmbedding(resumeText);
+  
+  const textToEmbed = `Resume Content:\n${resumeText}\n\nSkills:\n${skillsText}`;
+  const vector = await generateEmbedding(textToEmbed);
+  
   if (!vector || vector.length === 0) return false;
   await upsertRecord(CANDIDATES_TABLE, {
     vector,
@@ -40,9 +43,12 @@ async function indexCandidate(candidateId, resumeText) {
   return true;
 }
 
-async function indexTor(torId, torText) {
+async function indexTor(torId, torText, skillsText = '') {
   if (!torText || !torText.trim()) return false;
-  const vector = await generateEmbedding(torText);
+  
+  const textToEmbed = `TOR Content:\n${torText}\n\nSkills:\n${skillsText}`;
+  const vector = await generateEmbedding(textToEmbed);
+  
   if (!vector || vector.length === 0) return false;
   await upsertRecord(TORS_TABLE, {
     vector,

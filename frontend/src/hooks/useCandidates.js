@@ -32,12 +32,11 @@ export function useCandidate(id) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
+  const fetch = useCallback(() => {
     if (!id) return;
     setLoading(true);
     axios.get(`/api/candidates/${id}`)
       .then(res => {
-        // Handle both old and new response structures just in case
         if (res.data.candidate) {
           setCandidate(res.data.candidate);
           setResume(res.data.resume);
@@ -45,7 +44,6 @@ export function useCandidate(id) {
           setVacancies(res.data.vacancies || []);
         } else {
           setCandidate(res.data);
-          // Fallback if resume/skills weren't bundled yet
           setVacancies([]);
         }
       })
@@ -53,7 +51,16 @@ export function useCandidate(id) {
       .finally(() => setLoading(false));
   }, [id]);
 
-  return { candidate, resume, skills, vacancies, loading, error };
+  useEffect(() => {
+    fetch();
+  }, [id, fetch]);
+
+  return { candidate, resume, skills, vacancies, loading, error, refetch: fetch };
+}
+
+export async function extractCandidateSkills(id) {
+  const res = await axios.post(`/api/candidates/${id}/extract-skills`);
+  return res.data;
 }
 
 export function useStats() {

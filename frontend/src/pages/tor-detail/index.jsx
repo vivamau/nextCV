@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, FileText, ExternalLink, Sparkles, Loader, Check } from 'lucide-react';
+import { ArrowLeft, FileText, ExternalLink, Sparkles, Loader, Check, Plus } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useTor, useTorSkills, extractTorSkills, saveTorSkills } from '../../hooks/useTors';
 import SkillWeightTag from '../tors/components/SkillWeightTag';
@@ -13,6 +13,7 @@ export default function TorDetailPage() {
   const [extracting, setExtracting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [extractError, setExtractError] = useState(null);
+  const [newSkillName, setNewSkillName] = useState('');
 
   useEffect(() => {
     if (skills) setLocalSkills(skills);
@@ -27,6 +28,34 @@ export default function TorDetailPage() {
 
   const updateWeight = async (skillId, weight) => {
     const updated = localSkills.map(s => s.id === skillId ? { ...s, weight } : s);
+    setLocalSkills(updated);
+    setSaving(true);
+    try {
+      await saveTorSkills(id, updated.map(({ skill, weight }) => ({ skill, weight })));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddSkill = async (e) => {
+    if (e) e.preventDefault();
+    if (!newSkillName.trim()) return;
+    
+    const newSkill = { skill: newSkillName.trim(), weight: 3, id: Date.now() }; // Temp ID
+    const updated = [...localSkills, newSkill];
+    setLocalSkills(updated);
+    setNewSkillName('');
+    setSaving(true);
+    try {
+      await saveTorSkills(id, updated.map(({ skill, weight }) => ({ skill, weight })));
+      await refetchSkills(); // Get real DB IDs
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteSkill = async (skillId) => {
+    const updated = localSkills.filter(s => s.id !== skillId);
     setLocalSkills(updated);
     setSaving(true);
     try {
@@ -105,8 +134,26 @@ export default function TorDetailPage() {
                 skill={s.skill} 
                 weight={s.weight} 
                 onWeightChange={(w) => updateWeight(s.id, w)} 
+                onDelete={() => handleDeleteSkill(s.id)}
               />
             ))}
+            
+            <form onSubmit={handleAddSkill} className="flex items-center ml-1">
+              <input
+                type="text"
+                value={newSkillName}
+                onChange={(e) => setNewSkillName(e.target.value)}
+                placeholder="Add skill..."
+                className="w-32 px-3 py-1 text-[10px] border border-gray-200 rounded-l-full focus:outline-none focus:border-purple-300 focus:ring-1 focus:ring-purple-100 transition-all"
+              />
+              <button
+                type="submit"
+                disabled={!newSkillName.trim() || saving}
+                className="px-2 py-1 bg-gray-50 border border-l-0 border-gray-200 rounded-r-full text-gray-400 hover:text-purple-600 hover:bg-purple-50 disabled:opacity-50 transition-colors"
+              >
+                <Plus size={12} />
+              </button>
+            </form>
           </div>
         )}
       </div>

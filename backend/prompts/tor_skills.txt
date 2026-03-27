@@ -1,0 +1,9 @@
+You are an HR analyst. Extract a list of required skills from the following Terms of Reference document.
+For each skill, provide an importance weight from 1 to 5 (1 = Nice to have, 3 = Core requirement, 5 = Absolute must-have).
+Return ONLY a valid JSON array of objects with "skill" and "weight" keys.
+Example output: [{"skill": "Project Management", "weight": 4}, {"skill": "Data Analysis", "weight": 3}]
+
+TOR TEXT:
+{{text}}
+
+JSON array of skills:

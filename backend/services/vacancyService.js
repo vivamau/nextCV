@@ -27,7 +27,8 @@ function getVacancies(db = getDb()) {
 function getVacancyById(id, db = getDb()) {
   return new Promise((resolve, reject) => {
     db.get(
-      `SELECT v.*, t.name as tor_name
+      `SELECT v.*, t.name as tor_name,
+       (SELECT SUM(COALESCE(weight, 3)) FROM tor_skills WHERE tor_id = v.tor_id) as total_potential_score
        FROM vacancies v LEFT JOIN tors t ON t.id = v.tor_id
        WHERE v.id = ?`,
       [id],
@@ -98,12 +99,17 @@ function getCandidatesForVacancy(vacancyId, db = getDb()) {
       });
       if (!candidates.length) return resolve([]);
 
-      // 3. Get TOR skills
-      const torSkills = !vacancy.tor_id ? [] : await new Promise((res, rej) => {
-        db.all('SELECT skill FROM tor_skills WHERE tor_id = ?', [vacancy.tor_id], (err, rows) => 
-          err ? rej(err) : res(rows.map(r => r.skill))
+      // 3. Get TOR skills and weights
+      const torSkillsData = !vacancy.tor_id ? [] : await new Promise((res, rej) => {
+        db.all('SELECT skill, weight FROM tor_skills WHERE tor_id = ?', [vacancy.tor_id], (err, rows) => 
+          err ? rej(err) : res(rows)
         );
       });
+      const torSkillNames = torSkillsData.map(r => r.skill);
+      const weightMap = torSkillsData.reduce((acc, r) => {
+        acc[r.skill.toLowerCase().trim()] = r.weight || 3;
+        return acc;
+      }, {});
 
       // 4. Get all candidate skills for these candidates in one go
       const candIds = candidates.map(c => c.id);
@@ -121,19 +127,27 @@ function getCandidatesForVacancy(vacancyId, db = getDb()) {
         return acc;
       }, {});
 
-      // 6. Compute overlap
+      // 6. Compute overlap and weighted score
       const augmented = candidates.map(c => {
         const cSkills = skillsByCand[c.id] || [];
-        const matched = getSkillOverlap(cSkills, torSkills);
+        const matched = getSkillOverlap(cSkills, torSkillNames);
+        
+        // Calculate weighted score sum
+        const weightedScore = matched.reduce((sum, s) => {
+          return sum + (weightMap[s.toLowerCase().trim()] || 0);
+        }, 0);
+
         return {
           ...c,
           skill_match_count: matched.length,
-          matched_skills: matched.join(', ')
+          matched_skills: matched.join(', '),
+          weighted_score: weightedScore
         };
       });
 
-      // 7. Sort
+      // 7. Sort by weighted_score (primary) then count (secondary)
       augmented.sort((a, b) => {
+        if (b.weighted_score !== a.weighted_score) return b.weighted_score - a.weighted_score;
         if (b.skill_match_count !== a.skill_match_count) return b.skill_match_count - a.skill_match_count;
         const nameA = a.job_application || '';
         const nameB = b.job_application || '';

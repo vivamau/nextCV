@@ -263,14 +263,14 @@ describe('getCandidatesForVacancy — skill_match_count', () => {
 
   afterEach(() => db.close());
 
-  test('returns skill_match_count field', async () => {
+  test('returns weighted_score field', async () => {
     const list = await getCandidatesForVacancy(vacId, db);
-    expect(list[0]).toHaveProperty('skill_match_count');
+    expect(list[0]).toHaveProperty('weighted_score');
   });
 
-  test('counts matching skills correctly (2 of 3 match)', async () => {
+  test('calculates weighted score correctly (2 matches x default 3 = 6)', async () => {
     const list = await getCandidatesForVacancy(vacId, db);
-    expect(list[0].skill_match_count).toBe(2);
+    expect(list[0].weighted_score).toBe(6);
   });
 
   test('addAllCandidatesToVacancy should add all candidates to vacancy', async () => {
@@ -287,14 +287,14 @@ describe('getCandidatesForVacancy — skill_match_count', () => {
     await addCandidateToVacancy(cand2, vacId, db);
     const list = await getCandidatesForVacancy(vacId, db);
     const bob = list.find(c => c.id === cand2);
-    expect(bob.skill_match_count).toBe(0);
+    expect(bob.weighted_score).toBe(0);
   });
 
   test('returns 0 when vacancy has no TOR', async () => {
     const vacNoTor = await createVacancy({ title: 'No TOR' }, db);
     await addCandidateToVacancy(candId, vacNoTor, db);
     const list = await getCandidatesForVacancy(vacNoTor, db);
-    expect(list[0].skill_match_count).toBe(0);
+    expect(list[0].weighted_score).toBe(0);
   });
 
   test('is case-insensitive for skill matching', async () => {
@@ -303,14 +303,14 @@ describe('getCandidatesForVacancy — skill_match_count', () => {
     await addCandidateToVacancy(cand3, vacId, db);
     const list = await getCandidatesForVacancy(vacId, db);
     const carol = list.find(c => c.id === cand3);
-    expect(carol.skill_match_count).toBe(2);
+    expect(carol.weighted_score).toBe(6);
   });
 
-  test('sorts candidates by skill_match_count descending', async () => {
-    const cand2 = await insertCandidate({ ...CANDIDATE, job_application: 'Bob (C002)' }, db);
-    await insertSkills(cand2, ['Java'], db); // 0 matches
-    await addCandidateToVacancy(cand2, vacId, db);
+  test('sorts candidates by weighted_score primarily', async () => {
+    const cand2Id = await insertCandidate({ ...CANDIDATE, job_application: 'Bob (C002)' }, db);
+    await insertSkills(cand2Id, ['Java'], db); // 0 matches
+    await addCandidateToVacancy(cand2Id, vacId, db);
     const list = await getCandidatesForVacancy(vacId, db);
-    expect(list[0].skill_match_count).toBeGreaterThanOrEqual(list[1].skill_match_count);
+    expect(list[0].weighted_score).toBeGreaterThanOrEqual(list[1].weighted_score);
   });
 });

@@ -74,23 +74,25 @@ export async function addAllCandidatesToVacancy(vacancyId) {
 export function useVacancyRanking(vacancyId, enabled = true) {
   const [ranking, setRanking] = useState({});
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const fetch = useCallback(async () => {
-    if (!vacancyId || !enabled) return;
+  const fetch = useCallback(async (force = false) => {
+    if (!vacancyId || (!enabled && !force)) return;
     setLoading(true);
+    setError(null);
     try {
       const res = await axios.get(`/api/vacancies/${vacancyId}/rank`);
       // Convert array to map: { candidateId -> similarity }
       const map = {};
       res.data.forEach(r => { map[r.candidate_id] = r.similarity; });
       setRanking(map);
-    } catch (_) {
-      // Silently fail — vector index may not be ready yet
+    } catch (e) {
+      setError(e.response?.data?.error || e.message);
     } finally { setLoading(false); }
   }, [vacancyId, enabled]);
 
   useEffect(() => { fetch(); }, [fetch]);
-  return { ranking, loading, refetch: fetch };
+  return { ranking, loading, error, refetch: () => fetch(true) };
 }
 
 export function useSuggestedCandidates(vacancyId, enabled = true) {

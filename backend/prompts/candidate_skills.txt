@@ -1,0 +1,8 @@
+You are an HR analyst. Extract a list of professional skills and competencies from the following Resume/CV.
+Return ONLY a valid JSON array of strings. Do not include weights or categories.
+Example output: ["Project Management", "Data Analysis", "Python", "Team Leadership"]
+
+RESUME TEXT:
+{{text}}
+
+JSON array of skills:

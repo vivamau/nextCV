@@ -168,10 +168,28 @@ function clearCandidates(db = getDb()) {
 function getAllCandidatesForIndexing(db = getDb()) {
   return new Promise((resolve, reject) => {
     db.all(
-      `SELECT c.id, cr.resume_text
+      `SELECT c.id, cr.resume_text, GROUP_CONCAT(cs.skill) as skills
        FROM candidates c
        JOIN candidate_resumes cr ON cr.candidate_id = c.id
-       WHERE cr.resume_text IS NOT NULL AND cr.resume_text != ''`,
+       LEFT JOIN candidate_skills cs ON cs.candidate_id = c.id
+       WHERE cr.resume_text IS NOT NULL AND cr.resume_text != ''
+       GROUP BY c.id`,
+      (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows);
+      }
+    );
+  });
+}
+
+function getAllTorsForIndexing(db = getDb()) {
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT t.id, t.file_content, GROUP_CONCAT(ts.skill) as skills
+       FROM tors t
+       LEFT JOIN tor_skills ts ON ts.tor_id = t.id
+       WHERE t.file_content IS NOT NULL AND t.file_content != ''
+       GROUP BY t.id`,
       (err, rows) => {
         if (err) return reject(err);
         resolve(rows);
@@ -184,5 +202,5 @@ module.exports = {
   runMigrations, insertCandidate, upsertResume, insertSkills,
   getResumeByCandidate, getSkillsByCandidate,
   getCandidates, getCandidateById, getStats, clearCandidates,
-  getAllCandidatesForIndexing,
+  getAllCandidatesForIndexing, getAllTorsForIndexing,
 };

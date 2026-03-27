@@ -6,7 +6,8 @@ const { replaceTorSkills, getTorSkills } = require('../services/torSkillsService
 const { extractSkillsFromTor } = require('../services/llmService');
 const { getAllSettings } = require('../services/settingsService');
 const { extractTextFromBuffer } = require('../utilities/extractText');
-const { indexTor } = require('../services/vectorService');
+const { indexTor, rankCandidatesByTor } = require('../services/vectorService');
+const { getAllTorsForIndexing } = require('../services/dbService');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -22,9 +23,27 @@ router.post('/', upload.single('file'), async (req, res) => {
       : (req.body.file_content || null);
 
     const id = await createTor({ name: name.trim(), description, va_link, file_name, file_content });
-    // Index in vector DB asynchronously — don't block the response
-    if (file_content) indexTor(id, file_content).catch(() => {});
+    // Index in vector DB asynchronously — include skills if any
+    if (file_content) {
+      const skills = await getTorSkills(id);
+      indexTor(id, file_content, skills.map(s => s.skill).join(', ')).catch(() => {});
+    }
     res.status(201).json({ id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/tors/index-all — must come before /:id routes so 'index-all' is not treated as an ID
+router.post('/index-all', async (req, res) => {
+  try {
+    const list = await getAllTorsForIndexing();
+    let indexed = 0;
+    for (const tor of list) {
+      const ok = await indexTor(tor.id, tor.file_content, tor.skills);
+      if (ok) indexed++;
+    }
+    res.json({ indexed });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -64,6 +83,12 @@ router.put('/:id', upload.single('file'), async (req, res) => {
 
     const changes = await updateTor(req.params.id, { name: name.trim(), description, va_link, file_name, file_content });
     if (!changes) return res.status(404).json({ error: 'Not found' });
+
+    // Re-index TOR if content or name changed
+    if (file_content) {
+      const skills = await getTorSkills(req.params.id);
+      indexTor(req.params.id, file_content, skills.map(s => s.skill).join(', ')).catch(() => {});
+    }
     res.json({ changes });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -107,6 +132,8 @@ router.post('/:id/extract-skills', async (req, res) => {
     }
 
     await replaceTorSkills(req.params.id, skills);
+    // Re-index so search picks up new skills
+    indexTor(req.params.id, tor.file_content, skills.map(s => s.skill).join(', ')).catch(() => {});
     res.json({ skills });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -129,6 +156,11 @@ router.put('/:id/skills', async (req, res) => {
     const { skills } = req.body;
     if (!Array.isArray(skills)) return res.status(400).json({ error: 'skills array is required' });
     await replaceTorSkills(req.params.id, skills);
+    // Re-index so search picks up manual updates
+    const tor = await getTorById(req.params.id);
+    if (tor && tor.file_content) {
+      indexTor(req.params.id, tor.file_content, skills.map(s => s.skill).join(', ')).catch(() => {});
+    }
     res.json({ success: true, skills });
   } catch (err) {
     res.status(500).json({ error: err.message });

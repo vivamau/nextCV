@@ -1,15 +1,14 @@
+const fs = require('fs');
+const path = require('path');
 const axios = require('axios');
 const { Ollama } = require('ollama');
 
-const SKILLS_PROMPT = (text) => `You are an HR analyst. Extract a list of required skills from the following Terms of Reference document.
-For each skill, provide an importance weight from 1 to 5 (1 = Nice to have, 3 = Core requirement, 5 = Absolute must-have).
-Return ONLY a valid JSON array of objects with "skill" and "weight" keys.
-Example output: [{"skill": "Project Management", "weight": 4}, {"skill": "Data Analysis", "weight": 3}]
+const PROMPTS_DIR = path.join(__dirname, '../prompts');
 
-TOR TEXT:
-${text}
-
-JSON array of skills:`;
+function loadPrompt(filename, text) {
+  const template = fs.readFileSync(path.join(PROMPTS_DIR, filename), 'utf8');
+  return template.replace('{{text}}', text);
+}
 
 /**
  * Detects whether a model name refers to a cloud-hosted model.
@@ -18,48 +17,63 @@ function isCloudModel(model) {
   return !!(model && model.includes('cloud'));
 }
 
-async function extractSkillsFromTor(torText, { ollamaUrl, model, apiKey }) {
-  if (!torText || !torText.trim()) {
-    throw new Error('TOR text is empty');
-  }
+async function extractSkillsFromResume(resumeText, config) {
+  if (!resumeText || !resumeText.trim()) throw new Error('Resume text is empty');
 
-  const prompt = SKILLS_PROMPT(torText);
-  let raw = '';
-
-  if (isCloudModel(model)) {
-    // Cloud models via Ollama SDK pointing to https://ollama.com
-    // stream:false hangs for cloud models — must use stream:true and collect chunks
-    const headers = {};
-    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
-
-    const client = new Ollama({ host: 'https://ollama.com', headers });
-
-    const stream = await client.generate({
-      model, prompt, stream: true,
-      options: { num_ctx: 8192, temperature: 0.1 },
-    });
-
-    for await (const chunk of stream) {
-      raw += chunk.response || '';
-    }
-  } else {
-    // Local models via axios to the local Ollama instance
-    const baseUrl = ollamaUrl || 'http://localhost:11434';
-    const headers = {};
-    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
-
-    const response = await axios.post(
-      `${baseUrl}/api/generate`,
-      { model, prompt, stream: false },
-      { timeout: 120000, headers }
-    );
-    raw = response.data?.response || '';
-  }
+  const prompt = loadPrompt('candidate_skills.txt', resumeText);
+  const raw = await callLLM(prompt, config);
 
   let skills;
   try {
     let parsed = JSON.parse(raw);
-    // Some models return a JSON-encoded string wrapping the array — unwrap it
+    if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+    skills = parsed;
+  } catch (_e) {
+    const match = raw.match(/\[[\s\S]*\]/);
+    if (!match) throw new Error(`LLM returned unparseable response: ${raw.substring(0, 200)}`);
+    skills = JSON.parse(match[0]);
+  }
+
+  if (!Array.isArray(skills)) throw new Error('LLM did not return a JSON array');
+  
+  // Return a clean list of strings
+  return skills
+    .map(s => {
+      if (typeof s === 'string') return s.trim();
+      if (typeof s === 'object' && s.skill) return String(s.skill).trim();
+      return null;
+    })
+    .filter(s => s && s.length > 1);
+}
+
+/**
+ * Generic LLM call helper used by both TOR and Resume extraction
+ */
+async function callLLM(prompt, { ollamaUrl, model, apiKey }) {
+  let raw = '';
+  if (isCloudModel(model)) {
+    const headers = {};
+    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+    const client = new Ollama({ host: 'https://ollama.com', headers });
+    const stream = await client.generate({ model, prompt, stream: true, options: { num_ctx: 8192, temperature: 0.1 } });
+    for await (const chunk of stream) raw += chunk.response || '';
+  } else {
+    const baseUrl = ollamaUrl || 'http://localhost:11434';
+    const response = await axios.post(`${baseUrl}/api/generate`, { model, prompt, stream: false }, { timeout: 120000, headers: apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {} });
+    raw = response.data?.response || '';
+  }
+  return raw;
+}
+
+async function extractSkillsFromTor(torText, config) {
+  if (!torText || !torText.trim()) throw new Error('TOR text is empty');
+
+  const prompt = loadPrompt('tor_skills.txt', torText);
+  const raw = await callLLM(prompt, config);
+
+  let skills;
+  try {
+    let parsed = JSON.parse(raw);
     if (typeof parsed === 'string') parsed = JSON.parse(parsed);
     skills = parsed;
   } catch (_e) {
@@ -84,4 +98,4 @@ async function extractSkillsFromTor(torText, { ollamaUrl, model, apiKey }) {
     .filter(s => s && s.skill);
 }
 
-module.exports = { extractSkillsFromTor, isCloudModel };
+module.exports = { extractSkillsFromTor, extractSkillsFromResume, isCloudModel };

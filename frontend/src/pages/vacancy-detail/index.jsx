@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Briefcase, Calendar, FileText, UserPlus,
-  X, Search,
+  X, Search, RefreshCw,
 } from 'lucide-react';
 import {
   useVacancy, useVacancyCandidates, useVacancyRanking, useSuggestedCandidates,
@@ -10,6 +10,7 @@ import {
 } from '../../hooks/useVacancies';
 import { useCandidates } from '../../hooks/useCandidates';
 import VacancyCandidateTable from './components/VacancyCandidateTable';
+import axios from 'axios';
 
 // --- Add Candidate Modal ---
 function AddCandidateModal({ vacancyId, hasTor, existingIds, onClose, onAdded }) {
@@ -142,9 +143,32 @@ export default function VacancyDetailPage() {
   const navigate = useNavigate();
   const { vacancy, loading: loadingVacancy } = useVacancy(id);
   const { candidates, loading: loadingCandidates, refetch } = useVacancyCandidates(id);
-  const { ranking } = useVacancyRanking(id, !!vacancy?.tor_id);
+  const { ranking: initialRanking } = useVacancyRanking(id, !!vacancy?.tor_id);
+  const [ranking, setRanking] = useState({});
   const [showAdd, setShowAdd] = useState(false);
   const [removing, setRemoving] = useState(null);
+  const [reranking, setReranking] = useState(false);
+  const [rankingError, setRankingError] = useState(null);
+
+  // Sync initial ranking from hook into local state
+  useEffect(() => {
+    setRanking(initialRanking);
+  }, [initialRanking]);
+
+  const handleRerank = async () => {
+    setReranking(true);
+    setRankingError(null);
+    try {
+      const res = await axios.get(`/api/vacancies/${id}/rank`);
+      const map = {};
+      res.data.forEach(r => { map[r.candidate_id] = r.similarity; });
+      setRanking(map);
+    } catch (e) {
+      setRankingError(e.response?.data?.error || e.message);
+    } finally {
+      setReranking(false);
+    }
+  };
 
   const handleRemove = async (candidateId) => {
     setRemoving(candidateId);
@@ -215,7 +239,21 @@ export default function VacancyDetailPage() {
           </h2>
           <div className="flex items-center gap-4">
             {vacancy.tor_id && (
-              <span className="text-xs text-gray-400">Skills matched · Semantic similarity vs TOR</span>
+              <>
+                <span className="text-xs text-gray-400">Skills matched · Semantic similarity vs TOR</span>
+                {rankingError && (
+                  <span className="text-xs text-red-500" title={rankingError}>⚠ Re-rank failed</span>
+                )}
+                <button
+                  onClick={handleRerank}
+                  disabled={reranking}
+                  title="Re-run semantic ranking for all candidates"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 rounded-md text-gray-500 hover:text-indigo-600 hover:border-indigo-300 disabled:opacity-40 transition-colors"
+                >
+                  <RefreshCw size={13} className={reranking ? 'animate-spin' : ''} />
+                  Re-Rank
+                </button>
+              </>
             )}
             <button
               onClick={() => setShowAdd(true)}
@@ -241,6 +279,7 @@ export default function VacancyDetailPage() {
             ranking={ranking}
             onRemove={handleRemove}
             removingId={removing}
+            totalPotentialScore={vacancy?.total_potential_score || 0}
           />
         )}
       </div>

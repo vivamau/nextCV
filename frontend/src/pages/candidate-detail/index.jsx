@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, User } from 'lucide-react';
-import { useCandidate } from '../../hooks/useCandidates';
+import { ArrowLeft, User, Sparkles, Loader } from 'lucide-react';
+import { useState } from 'react';
+import { useCandidate, extractCandidateSkills } from '../../hooks/useCandidates';
 import VoteBadge from '../../commoncomponents/VoteBadge';
 
 function Field({ label, value }) {
@@ -15,7 +16,23 @@ function Field({ label, value }) {
 export default function CandidateDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { candidate, resume, skills, vacancies, loading, error } = useCandidate(id);
+  const { candidate, resume, skills, vacancies, loading, error, refetch } = useCandidate(id);
+
+  const [extracting, setExtracting] = useState(false);
+  const [extractError, setExtractError] = useState(null);
+
+  const handleExtractSkills = async () => {
+    setExtracting(true);
+    setExtractError(null);
+    try {
+      await extractCandidateSkills(id);
+      await refetch();
+    } catch (e) {
+      setExtractError(e.response?.data?.error || e.message);
+    } finally {
+      setExtracting(false);
+    }
+  };
 
   if (loading) return <p className="text-gray-500">Loading...</p>;
   if (error) return <p className="text-red-500">{error}</p>;
@@ -32,14 +49,30 @@ export default function CandidateDetailPage() {
 
       {/* Header */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-            <User size={22} className="text-blue-600" />
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+              <User size={22} className="text-blue-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                {candidate.name || candidate.job_application}
+              </h2>
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <span>Candidate #{candidate.id}</span>
+                <span>•</span>
+                <span>{candidate.type}</span>
+              </div>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">{candidate.job_application}</h2>
-            <p className="text-sm text-gray-500">{candidate.type}</p>
-          </div>
+          <button
+            onClick={handleExtractSkills}
+            disabled={extracting}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 rounded-md text-gray-600 hover:text-purple-700 hover:border-purple-300 disabled:opacity-40 transition-colors"
+          >
+            {extracting ? <Loader size={14} className="animate-spin" /> : <Sparkles size={14} />}
+            Extract Skills
+          </button>
         </div>
 
         <dl className="grid grid-cols-2 gap-5 mb-6">
@@ -51,22 +84,7 @@ export default function CandidateDetailPage() {
           <Field label="AI Evaluator Score" value={candidate.skills_match_score} />
         </dl>
 
-        <div className="border-t border-gray-100 pt-5 grid grid-cols-2 gap-5">
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Mau Vote</p>
-            <VoteBadge vote={candidate.mau_vote} />
-            {candidate.mau_comments && (
-              <p className="mt-2 text-sm text-gray-600 italic">"{candidate.mau_comments}"</p>
-            )}
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Luke Vote</p>
-            <VoteBadge vote={candidate.luke_vote} />
-            {candidate.luke_comments && (
-              <p className="mt-2 text-sm text-gray-600 italic">"{candidate.luke_comments}"</p>
-            )}
-          </div>
-        </div>
+        {/* Vote sections removed */}
       </div>
 
       {/* Applied Vacancies & Match Scores */}
@@ -125,9 +143,12 @@ export default function CandidateDetailPage() {
       </div>
 
       {/* Skills */}
-      {skills.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Skills</h3>
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-700">Skills</h3>
+          {extractError && <span className="text-xs text-red-500">{extractError}</span>}
+        </div>
+        {skills.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             {skills.map(skill => (
               <span key={skill} className="px-2.5 py-1 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-100">
@@ -135,8 +156,10 @@ export default function CandidateDetailPage() {
               </span>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <p className="text-sm text-gray-400 italic">No skills extracted. Click "Extract Skills" in the header to parse the resume.</p>
+        )}
+      </div>
 
       {/* Resume */}
       {resume?.resume_text && (

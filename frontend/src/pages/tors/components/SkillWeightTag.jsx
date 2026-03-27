@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 
-export default function SkillWeightTag({ skill, weight, onWeightChange }) {
+export default function SkillWeightTag({ skill, weight, onWeightChange, onDelete }) {
   const [showPicker, setShowPicker] = useState(false);
   const containerRef = useRef(null);
 
@@ -30,6 +30,19 @@ export default function SkillWeightTag({ skill, weight, onWeightChange }) {
       </div>
       <span className="px-2.5 py-0.5 text-[10px] font-medium text-gray-700">{skill}</span>
       
+      {onDelete && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="mr-1 w-4 h-4 rounded-full flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+          title="Remove skill"
+        >
+          <svg size={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      )}
+
       {showPicker && (
         <div className="absolute left-0 top-full mt-1 z-20 bg-white border border-gray-200 shadow-xl rounded-lg p-1 flex gap-0.5">
           {[1, 2, 3, 4, 5].map(w => (
