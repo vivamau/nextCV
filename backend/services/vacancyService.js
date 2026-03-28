@@ -149,6 +149,7 @@ function getCandidatesForVacancy(vacancyId, db = getDb()) {
 
         return {
           ...c,
+          has_ai_skills: cSkills.some(s => s.llm_extracted === 1),
           skill_match_count: matchedSkillNames.length,
           matched_skills: matchedSkills, // Now an array of objects instead of comma-separated string
           weighted_score: weightedScore

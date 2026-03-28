@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft, Briefcase, Calendar, FileText, UserPlus,
-  X, Search, RefreshCw,
+  X, Search, RefreshCw, Sparkles, Loader, AlertTriangle,
 } from 'lucide-react';
 import {
   useVacancy, useVacancyCandidates, useVacancyRanking, useSuggestedCandidates,
@@ -138,6 +138,93 @@ function AddCandidateModal({ vacancyId, hasTor, existingIds, onClose, onAdded })
   );
 }
 
+// --- Extract Skills Confirmation Modal ---
+function ExtractSkillsModal({ candidateCount, alreadyDone, onConfirm, onClose, extracting, progress }) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={18} className="text-yellow-500" />
+            <h2 className="font-semibold text-gray-800 dark:text-gray-100">Extract Skills — Bulk Operation</h2>
+          </div>
+          {!extracting && (
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+              <X size={18} />
+            </button>
+          )}
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          <p className="text-sm text-gray-700 dark:text-gray-200">
+            You are about to extract skills via AI for{' '}
+            <span className="font-semibold text-gray-900 dark:text-white">{candidateCount} candidate{candidateCount !== 1 ? 's' : ''}</span>{' '}
+            that have not had AI extraction run yet.
+            {alreadyDone > 0 && (
+              <span className="block mt-1 text-xs text-gray-400">
+                {alreadyDone} candidate{alreadyDone !== 1 ? 's' : ''} already have AI-extracted skills and will be skipped.
+              </span>
+            )}
+          </p>
+
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 space-y-2 text-sm text-yellow-800 dark:text-yellow-300">
+            <p className="font-semibold flex items-center gap-1.5"><AlertTriangle size={13} /> Before you proceed:</p>
+            <ul className="list-disc list-inside space-y-1 text-yellow-700 dark:text-yellow-400">
+              <li>Each candidate requires a separate LLM call — this will take a while.</li>
+              <li>Cloud models (e.g. Gemini) will consume API credits for every call.</li>
+              <li>Candidates without a resume will be skipped automatically.</li>
+            </ul>
+          </div>
+
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3 text-sm text-blue-700 dark:text-blue-300">
+            💡 To reduce costs, switch to a <span className="font-semibold">local Ollama model</span> in{' '}
+            <Link to="/settings" className="underline hover:text-blue-900 dark:hover:text-blue-100">Settings</Link>{' '}
+            before running this operation.
+          </div>
+
+          {extracting && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                <span>Extracting skills…</span>
+                <span>{progress.done}/{progress.total} ({progress.skipped} skipped{progress.failed > 0 ? `, ${progress.failed} failed` : ''})</span>
+              </div>
+              <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2">
+                <div
+                  className="bg-purple-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }}
+                />
+              </div>
+              {progress.current && (
+                <p className="text-[11px] text-gray-400 truncate">Processing: {progress.current}</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-3">
+          {!extracting ? (
+            <>
+              <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100">
+                Cancel
+              </button>
+              <button
+                onClick={onConfirm}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700"
+              >
+                <Sparkles size={14} /> Extract for {candidateCount} candidate{candidateCount !== 1 ? 's' : ''}
+              </button>
+            </>
+          ) : (
+            <button disabled className="flex items-center gap-1.5 px-4 py-2 text-sm bg-purple-600/50 text-white rounded-md cursor-not-allowed">
+              <Loader size={14} className="animate-spin" /> Extracting…
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // --- Main page ---
 export default function VacancyDetailPage() {
   const { id } = useParams();
@@ -150,6 +237,10 @@ export default function VacancyDetailPage() {
   const [removing, setRemoving] = useState(null);
   const [reranking, setReranking] = useState(false);
   const [rankingError, setRankingError] = useState(null);
+  const [visibleCandidates, setVisibleCandidates] = useState([]);
+  const [showExtractModal, setShowExtractModal] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [progress, setProgress] = useState({ done: 0, total: 0, skipped: 0, failed: 0, current: '' });
 
   // Sync initial ranking from hook into local state
   useEffect(() => {
@@ -169,6 +260,28 @@ export default function VacancyDetailPage() {
     } finally {
       setReranking(false);
     }
+  };
+
+  const candidatesWithoutSkills = visibleCandidates.filter(c => !c.has_ai_skills);
+
+  const handleExtractSkills = async () => {
+    const toProcess = visibleCandidates.filter(c => !c.has_ai_skills);
+    setExtracting(true);
+    setProgress({ done: 0, total: toProcess.length, skipped: 0, failed: 0, current: '' });
+    let skipped = 0, failed = 0;
+    for (let i = 0; i < toProcess.length; i++) {
+      const c = toProcess[i];
+      setProgress(p => ({ ...p, current: c.job_application || `#${c.id}` }));
+      try {
+        await axios.post(`/api/candidates/${c.id}/extract-skills`);
+      } catch (e) {
+        if (e.response?.status === 400) skipped++;
+        else failed++;
+      }
+      setProgress(p => ({ ...p, done: i + 1, skipped, failed }));
+    }
+    setExtracting(false);
+    if (toProcess.length > 0) refetch();
   };
 
   const handleRemove = async (candidateId) => {
@@ -260,6 +373,15 @@ export default function VacancyDetailPage() {
               </>
             )}
             <button
+              onClick={() => setShowExtractModal(true)}
+              disabled={candidatesWithoutSkills.length === 0}
+              title={candidatesWithoutSkills.length === 0 ? 'All visible candidates already have AI-extracted skills' : `Extract skills for ${candidatesWithoutSkills.length} candidate(s) without AI skills`}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-md text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:border-purple-300 dark:hover:border-purple-600 disabled:opacity-40 transition-colors"
+            >
+              <Sparkles size={13} />
+              Extract Skills{candidatesWithoutSkills.length > 0 && ` (${candidatesWithoutSkills.length})`}
+            </button>
+            <button
               onClick={() => setShowAdd(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
             >
@@ -278,15 +400,27 @@ export default function VacancyDetailPage() {
             <p className="text-sm border-t border-transparent">No candidates linked yet. Click Add to associate candidates.</p>
           </div>
         ) : (
-          <VacancyCandidateTable 
-            candidates={candidates} 
+          <VacancyCandidateTable
+            candidates={candidates}
             ranking={ranking}
             onRemove={handleRemove}
             removingId={removing}
             totalPotentialScore={vacancy?.total_potential_score || 0}
+            onVisibleCandidates={setVisibleCandidates}
           />
         )}
       </div>
+
+      {showExtractModal && (
+        <ExtractSkillsModal
+          candidateCount={candidatesWithoutSkills.length}
+          alreadyDone={visibleCandidates.length - candidatesWithoutSkills.length}
+          onConfirm={handleExtractSkills}
+          onClose={() => { if (!extracting) setShowExtractModal(false); }}
+          extracting={extracting}
+          progress={progress}
+        />
+      )}
 
       {showAdd && (
         <AddCandidateModal

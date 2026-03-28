@@ -1,9 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 import { Trash2, User, ChevronUp, ChevronDown, Download } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import ExcelJS from 'exceljs';
 
-export default function VacancyCandidateTable({ candidates, ranking, onRemove, removingId, totalPotentialScore = 0 }) {
+export default function VacancyCandidateTable({ candidates, ranking, onRemove, removingId, totalPotentialScore = 0, onVisibleCandidates }) {
   const navigate = useNavigate();
   const [sortConfig, setSortConfig] = useState({ key: 'weighted_score', direction: 'desc' });
   const [filterType, setFilterType] = useState('all');
@@ -68,6 +68,10 @@ export default function VacancyCandidateTable({ candidates, ranking, onRemove, r
       return (aVal - bVal) * modifier;
     });
   }, [filteredCandidates, sortConfig, ranking]);
+
+  useEffect(() => {
+    if (onVisibleCandidates) onVisibleCandidates(sortedCandidates);
+  }, [sortedCandidates]);
 
   const requestSort = (key) => {
     let direction = 'desc';
