@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const { getSetting, setSetting, getAllSettings } = require('../services/settingsService');
+const { getTokenSummary, getTokenUsage } = require('../services/tokenService');
 
 // GET /api/settings/ollama/models?url=http://localhost:11434
 router.get('/ollama/models', async (req, res) => {
@@ -41,6 +42,32 @@ router.put('/', async (req, res) => {
     await setSetting('ollama_api_key', ollama_api_key || '');
 
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/settings/token-usage/summary
+router.get('/token-usage/summary', async (req, res) => {
+  try {
+    const summary = await getTokenSummary();
+    res.json(summary);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/settings/token-usage?from=&to=&group_by=&limit=
+router.get('/token-usage', async (req, res) => {
+  try {
+    const { from, to, group_by, limit } = req.query;
+    const data = await getTokenUsage({
+      from: from || null,
+      to: to || null,
+      groupBy: group_by || null,
+      limit: limit ? Number(limit) : null,
+    });
+    res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

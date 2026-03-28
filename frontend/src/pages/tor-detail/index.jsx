@@ -65,28 +65,28 @@ export default function TorDetailPage() {
     }
   };
 
-  if (loading) return <p className="text-gray-500">Loading...</p>;
+  if (loading) return <p className="text-gray-500 dark:text-gray-400">Loading...</p>;
   if (!tor) return <p className="text-red-500">TOR not found</p>;
 
   return (
     <div className="max-w-3xl space-y-5">
       <div className="flex items-center justify-between">
         <button onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-blue-700">
+          className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-blue-700 dark:hover:text-blue-400">
           <ArrowLeft size={15} /> Back
         </button>
         {saving && <span className="text-[10px] uppercase font-bold text-gray-400 flex items-center gap-1"><Loader size={10} className="animate-spin" /> saving weights...</span>}
       </div>
 
       {/* Header */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-              <FileText size={20} className="text-blue-600" />
+            <div className="w-11 h-11 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0">
+              <FileText size={20} className="text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-gray-900">{tor.name}</h1>
+              <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-50">{tor.name}</h1>
               {tor.file_name && <p className="text-xs text-gray-400 mt-0.5">{tor.file_name}</p>}
             </div>
           </div>
@@ -94,14 +94,14 @@ export default function TorDetailPage() {
             onClick={handleExtract}
             disabled={extracting || !tor.file_name}
             title={tor.file_name ? 'Extract skills with LLM' : 'Upload a document first'}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 rounded-md text-gray-600 hover:text-purple-700 hover:border-purple-300 disabled:opacity-40"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-md text-gray-600 dark:text-gray-300 hover:text-purple-700 dark:hover:text-purple-400 hover:border-purple-300 dark:hover:border-purple-600 disabled:opacity-40"
           >
             {extracting ? <Loader size={14} className="animate-spin" /> : <Sparkles size={14} />}
             Extract Skills
           </button>
         </div>
 
-        {tor.description && <p className="text-sm text-gray-600">{tor.description}</p>}
+        {tor.description && <p className="text-sm text-gray-600 dark:text-gray-300">{tor.description}</p>}
 
         {tor.va_link && (
           <a href={tor.va_link} target="_blank" rel="noopener noreferrer"
@@ -112,9 +112,9 @@ export default function TorDetailPage() {
       </div>
 
       {/* Skills */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-gray-700">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
             Requirements Weighting
             {!loadingSkills && <span className="ml-2 font-normal text-gray-400">({localSkills.length})</span>}
           </h2>
@@ -144,12 +144,12 @@ export default function TorDetailPage() {
                 value={newSkillName}
                 onChange={(e) => setNewSkillName(e.target.value)}
                 placeholder="Add skill..."
-                className="w-32 px-3 py-1 text-[10px] border border-gray-200 rounded-l-full focus:outline-none focus:border-purple-300 focus:ring-1 focus:ring-purple-100 transition-all"
+                className="w-32 px-3 py-1 text-[10px] border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-l-full focus:outline-none focus:border-purple-300 dark:focus:border-purple-600 focus:ring-1 focus:ring-purple-100 dark:focus:ring-purple-900/30 transition-all"
               />
               <button
                 type="submit"
                 disabled={!newSkillName.trim() || saving}
-                className="px-2 py-1 bg-gray-50 border border-l-0 border-gray-200 rounded-r-full text-gray-400 hover:text-purple-600 hover:bg-purple-50 disabled:opacity-50 transition-colors"
+                className="px-2 py-1 bg-gray-50 dark:bg-gray-700 border border-l-0 border-gray-200 dark:border-gray-600 rounded-r-full text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 disabled:opacity-50 transition-colors"
               >
                 <Plus size={12} />
               </button>
@@ -160,9 +160,9 @@ export default function TorDetailPage() {
 
       {/* Document content */}
       {tor.file_content && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">Document Content</h2>
-          <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">Document Content</h2>
+          <pre className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-sans leading-relaxed bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 max-h-96 overflow-y-auto">
             {tor.file_content}
           </pre>
         </div>

@@ -5,6 +5,7 @@ const { createTor, getTors, getTorById, updateTor, deleteTor } = require('../ser
 const { replaceTorSkills, getTorSkills } = require('../services/torSkillsService');
 const { extractSkillsFromTor } = require('../services/llmService');
 const { getAllSettings } = require('../services/settingsService');
+const { logTokenUsage } = require('../services/tokenService');
 const { extractTextFromBuffer } = require('../utilities/extractText');
 const { indexTor, rankCandidatesByTor } = require('../services/vectorService');
 const { getAllTorsForIndexing } = require('../services/dbService');
@@ -121,16 +122,27 @@ router.post('/:id/extract-skills', async (req, res) => {
     }
 
     let skills;
+    let promptTokens = 0, completionTokens = 0;
     try {
-      skills = await extractSkillsFromTor(tor.file_content, {
+      const result = await extractSkillsFromTor(tor.file_content, {
         ollamaUrl: settings.ollama_url || 'http://localhost:11434',
         model: settings.llm_model,
         apiKey: settings.ollama_api_key || null,
       });
+      skills = result.skills;
+      promptTokens = result.promptTokens;
+      completionTokens = result.completionTokens;
     } catch (llmErr) {
       return res.status(502).json({ error: `LLM error: ${llmErr.message}` });
     }
 
+    await logTokenUsage({
+      provider: settings.llm_provider,
+      model: settings.llm_model,
+      operation: 'extract_tor_skills',
+      promptTokens,
+      completionTokens,
+    });
     await replaceTorSkills(req.params.id, skills);
     // Re-index so search picks up new skills
     indexTor(req.params.id, tor.file_content, skills.map(s => s.skill).join(', ')).catch(() => {});

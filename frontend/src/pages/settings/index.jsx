@@ -10,9 +10,9 @@ const PROVIDERS = [
 function StatusBadge({ status }) {
   if (!status) return null;
   const map = {
-    saved:   { icon: CheckCircle,  cls: 'text-green-600 bg-green-50 border-green-200',  text: 'Settings saved' },
-    error:   { icon: AlertCircle,  cls: 'text-red-600 bg-red-50 border-red-200',        text: 'Failed to save' },
-    unreachable: { icon: AlertCircle, cls: 'text-yellow-600 bg-yellow-50 border-yellow-200', text: 'Ollama unreachable' },
+    saved:   { icon: CheckCircle,  cls: 'text-green-600 bg-green-50 border-green-200 dark:bg-green-900/30 dark:border-green-800',  text: 'Settings saved' },
+    error:   { icon: AlertCircle,  cls: 'text-red-600 bg-red-50 border-red-200 dark:bg-red-900/30 dark:border-red-800',        text: 'Failed to save' },
+    unreachable: { icon: AlertCircle, cls: 'text-yellow-600 bg-yellow-50 border-yellow-200 dark:bg-yellow-900/30 dark:border-yellow-800', text: 'Ollama unreachable' },
   };
   const { icon: Icon, cls, text } = map[status] || {};
   return (
@@ -77,29 +77,29 @@ export default function SettingsPage() {
     }
   };
 
-  if (loading) return <p className="text-gray-500">Loading...</p>;
+  if (loading) return <p className="text-gray-500 dark:text-gray-400">Loading...</p>;
 
   return (
     <div className="max-w-xl">
       <div className="flex items-center gap-2 mb-6">
-        <Settings size={20} className="text-gray-500" />
-        <h1 className="text-xl font-semibold text-gray-800">Settings</h1>
+        <Settings size={20} className="text-gray-500 dark:text-gray-400" />
+        <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Settings</h1>
       </div>
 
-      <form onSubmit={handleSave} className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
+      <form onSubmit={handleSave} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-6">
         <div>
-          <h2 className="text-sm font-semibold text-gray-700 mb-4">LLM Configuration</h2>
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">LLM Configuration</h2>
 
           {/* Provider */}
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
                 Provider
               </label>
               <select
                 value={provider}
                 onChange={e => { setProvider(e.target.value); setModel(''); setStatus(null); }}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
               >
                 {PROVIDERS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
               </select>
@@ -109,7 +109,7 @@ export default function SettingsPage() {
             {provider === 'ollama' && (
               <>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
                     Ollama URL
                   </label>
                   <div className="flex gap-2">
@@ -118,13 +118,13 @@ export default function SettingsPage() {
                       value={ollamaUrl}
                       onChange={e => setOllamaUrl(e.target.value)}
                       placeholder="http://localhost:11434"
-                      className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      className="flex-1 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
                     />
                     <button
                       type="button"
                       onClick={() => loadModels(ollamaUrl)}
                       disabled={loadingModels}
-                      className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                      className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
                     >
                       <RefreshCw size={14} className={loadingModels ? 'animate-spin' : ''} />
                       Refresh
@@ -133,7 +133,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
                     API Key <span className="normal-case font-normal text-gray-400">(required for cloud models)</span>
                   </label>
                   <input
@@ -141,7 +141,7 @@ export default function SettingsPage() {
                     value={apiKey}
                     onChange={e => setApiKey(e.target.value)}
                     placeholder="Leave empty for local models"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
                   />
                 </div>
 
@@ -155,7 +155,7 @@ export default function SettingsPage() {
                       value={model}
                       onChange={e => setModel(e.target.value)}
                       required
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
                     >
                       <option value="">Select a model...</option>
                       {models.map(m => <option key={m} value={m}>{m}</option>)}
@@ -171,7 +171,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+        <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
           <StatusBadge status={status} />
           <button
             type="submit"

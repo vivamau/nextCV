@@ -6,6 +6,7 @@ const { getVacanciesForCandidate } = require('../services/vacancyService');
 const { extractSkillsFromResume, extractLinksFromResume } = require('../services/llmService');
 const { getAllSettings } = require('../services/settingsService');
 const { getSkillOverlap } = require('../utilities/skillMatcher');
+const { logTokenUsage } = require('../services/tokenService');
 const { getDb } = require('../config/db');
 
 // GET /api/candidates?search=&nationality=&gender=&mau_vote=&luke_vote=&page=&limit=
@@ -143,16 +144,27 @@ router.post('/:id/extract-skills', async (req, res) => {
     }
 
     let skills;
+    let promptTokens = 0, completionTokens = 0;
     try {
-      skills = await extractSkillsFromResume(resume.resume_text, {
+      const result = await extractSkillsFromResume(resume.resume_text, {
         ollamaUrl: settings.ollama_url || 'http://localhost:11434',
         model: settings.llm_model,
         apiKey: settings.ollama_api_key || null,
       });
+      skills = result.skills;
+      promptTokens = result.promptTokens;
+      completionTokens = result.completionTokens;
     } catch (llmErr) {
       return res.status(502).json({ error: `LLM error: ${llmErr.message}` });
     }
 
+    await logTokenUsage({
+      provider: settings.llm_provider,
+      model: settings.llm_model,
+      operation: 'extract_skills',
+      promptTokens,
+      completionTokens,
+    });
     await insertSkills(id, skills, true);
     // Explicitly re-index after extraction so search picks up new skills
     await indexCandidate(id, resume.resume_text, skills.join(', '));
@@ -180,16 +192,27 @@ router.post('/:id/extract-links', async (req, res) => {
     }
 
     let links;
+    let promptTokens = 0, completionTokens = 0;
     try {
-      links = await extractLinksFromResume(resume.resume_text, {
+      const result = await extractLinksFromResume(resume.resume_text, {
         ollamaUrl: settings.ollama_url || 'http://localhost:11434',
         model: settings.llm_model,
         apiKey: settings.ollama_api_key || null,
       });
+      links = result.links;
+      promptTokens = result.promptTokens;
+      completionTokens = result.completionTokens;
     } catch (llmErr) {
       return res.status(502).json({ error: `LLM error: ${llmErr.message}` });
     }
 
+    await logTokenUsage({
+      provider: settings.llm_provider,
+      model: settings.llm_model,
+      operation: 'extract_links',
+      promptTokens,
+      completionTokens,
+    });
     await insertLinks(id, links);
     res.json({ links });
   } catch (err) {

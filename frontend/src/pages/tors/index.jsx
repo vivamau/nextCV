@@ -7,10 +7,10 @@ import TorCard from './components/TorCard';
 function Modal({ title, onClose, children }) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-800">{title}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+          <h2 className="font-semibold text-gray-800 dark:text-gray-100">{title}</h2>
+          <button onClick={onClose} className="text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200"><X size={18} /></button>
         </div>
         <div className="px-6 py-5">{children}</div>
       </div>
@@ -56,7 +56,7 @@ export default function TorsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-semibold text-gray-800">Terms of Reference</h1>
+        <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Terms of Reference</h1>
         <button
           onClick={() => setShowCreate(true)}
           className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
@@ -68,9 +68,9 @@ export default function TorsPage() {
       {error && <p className="text-red-500 mb-4">{error}</p>}
 
       {loading ? (
-        <p className="text-gray-500">Loading...</p>
+        <p className="text-gray-500 dark:text-gray-400">Loading...</p>
       ) : tors.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
+        <div className="text-center py-16 text-gray-400 dark:text-gray-500">
           <FileText size={40} className="mx-auto mb-3 opacity-40" />
           <p className="text-sm">No TORs yet. Create one to get started.</p>
         </div>

@@ -7,7 +7,7 @@ function StatusBadge({ openedAt, closedAt }) {
   const closed = closedAt && new Date(closedAt) < now;
   return (
     <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
-      closed ? 'bg-gray-100 text-gray-500' : 'bg-green-100 text-green-700'
+      closed ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400' : 'bg-green-100 dark:bg-green-900/30 text-green-700'
     }`}>
       {closed ? 'Closed' : 'Open'}
     </span>
@@ -18,12 +18,12 @@ export default function VacancyCard({ vacancy, onEdit, onDelete, onClick }) {
   return (
     <div
       onClick={() => onClick(vacancy.id)}
-      className="bg-white rounded-xl border border-gray-200 p-5 flex flex-col gap-3 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all"
+      className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 flex flex-col gap-3 cursor-pointer hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-sm transition-all"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Briefcase size={18} className="text-blue-500 shrink-0" />
-          <h3 className="font-semibold text-gray-900">{vacancy.title}</h3>
+          <Briefcase size={18} className="text-blue-500 dark:text-blue-400 shrink-0" />
+          <h3 className="font-semibold text-gray-900 dark:text-gray-50">{vacancy.title}</h3>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <StatusBadge openedAt={vacancy.opened_at} closedAt={vacancy.closed_at} />
@@ -39,7 +39,7 @@ export default function VacancyCard({ vacancy, onEdit, onDelete, onClick }) {
       </div>
 
       {vacancy.description && (
-        <p className="text-sm text-gray-600 line-clamp-2">{vacancy.description}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{vacancy.description}</p>
       )}
 
       {vacancy.tor_name && (
@@ -47,14 +47,14 @@ export default function VacancyCard({ vacancy, onEdit, onDelete, onClick }) {
           <Link
             to={`/tors/${vacancy.tor_id}`}
             onClick={e => e.stopPropagation()}
-            className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-100 hover:bg-blue-100 transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs rounded-full border border-blue-100 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
           >
             <FileText size={11} /> {vacancy.tor_name}
           </Link>
         </div>
       )}
 
-      <div className="flex items-center gap-4 text-xs text-gray-400 mt-auto pt-1 border-t border-gray-50">
+      <div className="flex items-center gap-4 text-xs text-gray-400 mt-auto pt-1 border-t border-gray-50 dark:border-gray-700">
         {vacancy.opened_at && (
           <span className="flex items-center gap-1">
             <Calendar size={12} /> {formatDate(vacancy.opened_at)}

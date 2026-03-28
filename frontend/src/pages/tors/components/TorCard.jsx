@@ -43,14 +43,14 @@ export default function TorCard({ tor, onEdit, onDelete }) {
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 flex flex-col gap-3 relative">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 flex flex-col gap-3 relative">
       {saving && <div className="absolute top-2 right-12 text-[9px] uppercase font-bold text-gray-400 flex items-center gap-1 z-10"><Loader size={8} className="animate-spin" /> saving...</div>}
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <FileText size={18} className="text-blue-500 shrink-0" />
           <h3
-            className="font-semibold text-gray-900 cursor-pointer hover:text-blue-700"
+            className="font-semibold text-gray-900 dark:text-gray-50 cursor-pointer hover:text-blue-700 dark:hover:text-blue-400"
             onClick={() => navigate(`/tors/${tor.id}`)}
           >
             {tor.name}
@@ -75,7 +75,7 @@ export default function TorCard({ tor, onEdit, onDelete }) {
       </div>
 
       {tor.description && (
-        <p className="text-sm text-gray-600 line-clamp-2">{tor.description}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{tor.description}</p>
       )}
 
       {/* Skills */}
@@ -98,7 +98,7 @@ export default function TorCard({ tor, onEdit, onDelete }) {
       ) : null}
 
       {/* Footer */}
-      <div className="flex items-center gap-4 text-xs text-gray-400 mt-auto pt-1 border-t border-gray-50">
+      <div className="flex items-center gap-4 text-xs text-gray-400 mt-auto pt-1 border-t border-gray-50 dark:border-gray-700">
         {tor.file_name && (
           <span className="flex items-center gap-1 truncate">
             <FileText size={12} /> {tor.file_name}

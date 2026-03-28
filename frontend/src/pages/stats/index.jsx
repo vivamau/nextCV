@@ -4,19 +4,19 @@ function StatBar({ label, count, total, color = 'bg-blue-500' }) {
   const pct = total ? Math.round((count / total) * 100) : 0;
   return (
     <div className="flex items-center gap-3 text-sm">
-      <span className="w-32 truncate text-gray-700">{label}</span>
-      <div className="flex-1 bg-gray-100 rounded-full h-2.5">
+      <span className="w-32 truncate text-gray-700 dark:text-gray-200">{label}</span>
+      <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-full h-2.5">
         <div className={`${color} h-2.5 rounded-full`} style={{ width: `${pct}%` }} />
       </div>
-      <span className="w-16 text-right text-gray-500">{count} ({pct}%)</span>
+      <span className="w-16 text-right text-gray-500 dark:text-gray-400">{count} ({pct}%)</span>
     </div>
   );
 }
 
 function Section({ title, children }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
-      <h3 className="text-sm font-semibold text-gray-700 mb-4">{title}</h3>
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">{title}</h3>
       <div className="space-y-2.5">{children}</div>
     </div>
   );
@@ -27,12 +27,12 @@ const VOTE_COLORS = { yes: 'bg-green-500', no: 'bg-red-500', maybe: 'bg-yellow-4
 export default function StatsPage() {
   const { stats, loading } = useStats();
 
-  if (loading || !stats) return <p className="text-gray-500">Loading stats...</p>;
+  if (loading || !stats) return <p className="text-gray-500 dark:text-gray-400">Loading stats...</p>;
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-gray-800 mb-2">Statistics</h1>
-      <p className="text-sm text-gray-500 mb-6">Total candidates: <strong>{stats.total}</strong></p>
+      <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">Statistics</h1>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Total candidates: <strong>{stats.total}</strong></p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <Section title="Top Nationalities">

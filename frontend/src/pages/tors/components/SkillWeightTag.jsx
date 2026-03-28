@@ -18,7 +18,7 @@ export default function SkillWeightTag({ skill, weight, onWeightChange, onDelete
   return (
     <div 
       ref={containerRef}
-      className={`relative group flex items-center bg-white border border-purple-200 rounded-full shadow-sm hover:shadow-md transition-all cursor-pointer ${showPicker ? 'z-30' : 'z-auto'}`}
+      className={`relative group flex items-center bg-white dark:bg-gray-800 border border-purple-200 dark:border-purple-800 rounded-full shadow-sm hover:shadow-md transition-all cursor-pointer ${showPicker ? 'z-30' : 'z-auto'}`}
       onClick={(e) => { e.stopPropagation(); setShowPicker(!showPicker); }}
     >
       <div 
@@ -28,7 +28,7 @@ export default function SkillWeightTag({ skill, weight, onWeightChange, onDelete
       >
         {weight}
       </div>
-      <span className="px-2.5 py-0.5 text-[10px] font-medium text-gray-700">{skill}</span>
+      <span className="px-2.5 py-0.5 text-[10px] font-medium text-gray-700 dark:text-gray-200">{skill}</span>
       
       {onDelete && (
         <button
@@ -44,13 +44,13 @@ export default function SkillWeightTag({ skill, weight, onWeightChange, onDelete
       )}
 
       {showPicker && (
-        <div className="absolute left-0 top-full mt-1 z-20 bg-white border border-gray-200 shadow-xl rounded-lg p-1 flex gap-0.5">
+        <div className="absolute left-0 top-full mt-1 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl rounded-lg p-1 flex gap-0.5">
           {[1, 2, 3, 4, 5].map(w => (
             <button
               key={w}
               onClick={(e) => { e.stopPropagation(); onWeightChange(w); setShowPicker(false); }}
               className={`w-7 h-7 rounded flex items-center justify-center text-[10px] font-bold transition-colors ${
-                w === weight ? 'bg-purple-600 text-white' : 'hover:bg-purple-50 text-gray-600'
+                w === weight ? 'bg-purple-600 text-white' : 'hover:bg-purple-50 dark:hover:bg-purple-900/30 text-gray-600 dark:text-gray-300'
               }`}
             >
               {w}

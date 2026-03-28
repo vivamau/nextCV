@@ -25,46 +25,46 @@ export default function TorForm({ initial, onSubmit, onCancel, loading }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-xs font-semibold text-gray-600 mb-1">Name *</label>
+        <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">Name *</label>
         <input
           required
           value={fields.name}
           onChange={set('name')}
           placeholder="e.g. Programme Associate P2"
-          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
       </div>
 
       <div>
-        <label className="block text-xs font-semibold text-gray-600 mb-1">Description</label>
+        <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">Description</label>
         <textarea
           value={fields.description}
           onChange={set('description')}
           rows={3}
           placeholder="Brief description of the position..."
-          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+          className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
         />
       </div>
 
       <div>
-        <label className="block text-xs font-semibold text-gray-600 mb-1">VA Link</label>
+        <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">VA Link</label>
         <input
           type="url"
           value={fields.va_link}
           onChange={set('va_link')}
           placeholder="https://..."
-          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
       </div>
 
       <div>
-        <label className="block text-xs font-semibold text-gray-600 mb-1">TOR Document</label>
+        <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">TOR Document</label>
         <div
           onClick={() => fileRef.current.click()}
-          className="border-2 border-dashed border-gray-300 rounded-md px-4 py-5 text-center cursor-pointer hover:border-blue-400 transition-colors"
+          className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-md px-4 py-5 text-center cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 transition-colors"
         >
           {file ? (
-            <div className="flex items-center justify-center gap-2 text-sm text-gray-700">
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-700 dark:text-gray-200">
               <Upload size={15} className="text-blue-500" />
               {file.name}
               <button type="button" onClick={(e) => { e.stopPropagation(); setFile(null); }}>
@@ -86,7 +86,7 @@ export default function TorForm({ initial, onSubmit, onCancel, loading }) {
 
       <div className="flex justify-end gap-3 pt-2">
         {onCancel && (
-          <button type="button" onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">
+          <button type="button" onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100">
             Cancel
           </button>
         )}

@@ -12,7 +12,7 @@ export default function Filters({ filters, onChange }) {
           placeholder="Search name..."
           value={filters.search || ''}
           onChange={set('search')}
-          className="pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 w-52"
+          className="pl-8 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 w-52 dark:bg-gray-800 dark:text-gray-200"
         />
       </div>
 
