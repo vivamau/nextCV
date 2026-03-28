@@ -162,6 +162,21 @@ function getCandidateById(id, db = getDb()) {
 
 function getStats(db = getDb()) {
   return new Promise((resolve, reject) => {
+    const ageGroupSql = `
+      SELECT
+        CASE
+          WHEN age < 25 THEN 'Under 25'
+          WHEN age BETWEEN 25 AND 34 THEN '25–34'
+          WHEN age BETWEEN 35 AND 44 THEN '35–44'
+          WHEN age BETWEEN 45 AND 54 THEN '45–54'
+          WHEN age >= 55 THEN '55+'
+          ELSE 'Unknown'
+        END as age_group,
+        COUNT(*) as count
+      FROM candidates
+      GROUP BY age_group
+      ORDER BY MIN(CASE WHEN age IS NULL THEN 999 ELSE age END)
+    `;
     const queries = [
       db.get.bind(db, 'SELECT COUNT(*) as total FROM candidates'),
       db.all.bind(db, 'SELECT nationality, COUNT(*) as count FROM candidates GROUP BY nationality ORDER BY count DESC LIMIT 10'),
@@ -169,10 +184,11 @@ function getStats(db = getDb()) {
       db.all.bind(db, 'SELECT mau_vote, COUNT(*) as count FROM candidates GROUP BY mau_vote'),
       db.all.bind(db, 'SELECT luke_vote, COUNT(*) as count FROM candidates GROUP BY luke_vote'),
       db.all.bind(db, 'SELECT type, COUNT(*) as count FROM candidates GROUP BY type'),
+      db.all.bind(db, ageGroupSql),
     ];
     Promise.all(queries.map(q => new Promise((res, rej) => q((e, r) => e ? rej(e) : res(r)))))
-      .then(([total, nationalities, genders, mauVotes, lukeVotes, types]) =>
-        resolve({ total: total.total, nationalities, genders, mauVotes, lukeVotes, types })
+      .then(([total, nationalities, genders, mauVotes, lukeVotes, types, ageGroups]) =>
+        resolve({ total: total.total, nationalities, genders, mauVotes, lukeVotes, types, ageGroups })
       )
       .catch(reject);
   });

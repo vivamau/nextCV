@@ -37,8 +37,16 @@ export default function VacancyCandidateTable({ candidates, ranking, onRemove, r
     if (filterType === 'above_average') {
       return candidates.filter(c => normalize(c.weighted_score || 0) > threshold);
     }
+    if (filterType === 'above_average_and_semantic') {
+      return candidates.filter(c => {
+        const scoreOk = normalize(c.weighted_score || 0) > threshold;
+        const semVal = ranking[c.id];
+        const semanticOk = semVal !== undefined && normalizeSemantic(semVal) >= 70;
+        return scoreOk && semanticOk;
+      });
+    }
     return candidates;
-  }, [candidates, filterType, threshold]);
+  }, [candidates, filterType, threshold, ranking]);
 
   const sortedCandidates = useMemo(() => {
     if (!sortConfig.key) return filteredCandidates;
@@ -159,6 +167,9 @@ export default function VacancyCandidateTable({ candidates, ranking, onRemove, r
             <option value="above_average">
               Top Tier (Score &gt; {threshold.toFixed(1)} normalized)
             </option>
+            <option value="above_average_and_semantic">
+              Top Tier + High Semantic (Score &gt; avg &amp; Semantic ≥ 70%)
+            </option>
           </select>
         </div>
         
@@ -167,6 +178,12 @@ export default function VacancyCandidateTable({ candidates, ranking, onRemove, r
             <div className="flex items-center gap-2 px-3 py-1 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full border border-green-100 dark:border-green-800 animate-in fade-in slide-in-from-right-2">
               <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
               <span className="text-[10px] font-bold uppercase tracking-tight">Top Talent View Active</span>
+            </div>
+          )}
+          {filterType === 'above_average_and_semantic' && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded-full border border-indigo-100 dark:border-indigo-800 animate-in fade-in slide-in-from-right-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+              <span className="text-[10px] font-bold uppercase tracking-tight">Top Talent + Semantic ≥ 70%</span>
             </div>
           )}
           <button

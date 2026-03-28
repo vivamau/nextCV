@@ -307,6 +307,7 @@ describe('getStats', () => {
     expect(Array.isArray(stats.mauVotes)).toBe(true);
     expect(Array.isArray(stats.lukeVotes)).toBe(true);
     expect(Array.isArray(stats.types)).toBe(true);
+    expect(Array.isArray(stats.ageGroups)).toBe(true);
   });
 });
 

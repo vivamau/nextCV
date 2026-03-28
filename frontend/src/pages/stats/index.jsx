@@ -106,15 +106,21 @@ export default function StatsPage() {
           ))}
         </Section>
 
-        <Section title="Gender">
-          {stats.genders.map(g => (
-            <StatBar key={g.gender} label={g.gender || 'Unknown'} count={g.count} total={stats.total} color="bg-purple-500" />
+        <Section title="Age Groups">
+          {(stats.ageGroups || []).map(a => (
+            <StatBar key={a.age_group} label={a.age_group} count={a.count} total={stats.total} color="bg-orange-400" />
           ))}
         </Section>
 
         <Section title="Internal vs External">
           {stats.types.map(t => (
             <StatBar key={t.type} label={t.type || 'Unknown'} count={t.count} total={stats.total} color="bg-teal-500" />
+          ))}
+        </Section>
+
+        <Section title="Gender">
+          {stats.genders.map(g => (
+            <StatBar key={g.gender} label={g.gender || 'Unknown'} count={g.count} total={stats.total} color="bg-purple-500" />
           ))}
         </Section>
 
