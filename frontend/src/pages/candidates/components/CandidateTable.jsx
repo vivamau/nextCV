@@ -71,11 +71,11 @@ export default function CandidateTable({ candidates, sortBy, sortDir, onSort }) 
 function SkillBadge({ score }) {
   if (!score) return <span className="text-gray-400">—</span>;
   const colors = {
-    Excellent: 'bg-green-100 text-green-700',
-    Good: 'bg-blue-100 text-blue-700',
-    Fair: 'bg-yellow-100 text-yellow-700',
-    Poor: 'bg-red-100 text-red-700',
+    Excellent: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
+    Good: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
+    Fair: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400',
+    Poor: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
   };
-  const cls = colors[score] || 'bg-gray-100 text-gray-600';
+  const cls = colors[score] || 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400';
   return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cls}`}>{score}</span>;
 }
