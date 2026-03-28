@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const swaggerUi = require('swagger-ui-express');
+const YAML = require('yamljs');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const { runMigrations } = require('./services/dbService');
@@ -22,6 +24,9 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/vacancies', vacancyRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+
+const swaggerDoc = YAML.load(path.join(__dirname, 'swagger.yaml'));
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 
 async function start() {
   await waitForDbReady();

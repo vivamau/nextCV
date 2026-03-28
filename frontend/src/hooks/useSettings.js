@@ -32,3 +32,25 @@ export async function fetchOllamaModels(url) {
   const res = await axios.get('/api/settings/ollama/models', { params: { url } });
   return res.data;
 }
+
+export function useTokenUsage() {
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const refetch = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get('/api/settings/token-usage/summary');
+      setSummary(res.data);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { refetch(); }, []);
+
+  return { summary, loading, error, refetch };
+}

@@ -1,4 +1,6 @@
 import { useStats } from '../../hooks/useCandidates';
+import { useTokenUsage } from '../../hooks/useSettings';
+import { Zap } from 'lucide-react';
 
 function StatBar({ label, count, total, color = 'bg-blue-500' }) {
   const pct = total ? Math.round((count / total) * 100) : 0;
@@ -22,10 +24,73 @@ function Section({ title, children }) {
   );
 }
 
-const VOTE_COLORS = { yes: 'bg-green-500', no: 'bg-red-500', maybe: 'bg-yellow-400' };
+function TokenSection({ summary }) {
+  const total = summary.totalTokens;
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 md:col-span-2">
+      <div className="flex items-center gap-2 mb-4">
+        <Zap size={14} className="text-yellow-500" />
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Token Usage</h3>
+        <span className="ml-auto text-xs text-gray-400">{total.toLocaleString()} total</span>
+      </div>
+      {total === 0 ? (
+        <p className="text-sm text-gray-400 italic">No token usage recorded yet.</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {summary.byModel.length > 0 && (
+            <div>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2.5">By Provider &amp; Model</p>
+              <div className="space-y-2.5">
+                {summary.byModel.map(r => {
+                  const pct = total ? Math.round((r.total_tokens / total) * 100) : 0;
+                  return (
+                    <div key={`${r.provider}/${r.model}`} className="flex items-center gap-3 text-sm">
+                      <div className="w-40 min-w-0 flex items-center gap-1.5">
+                        <span className="shrink-0 text-[9px] font-bold px-1 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 uppercase">{r.provider}</span>
+                        <span className="truncate text-gray-700 dark:text-gray-200">{r.model}</span>
+                      </div>
+                      <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-full h-2.5">
+                        <div className="bg-yellow-400 h-2.5 rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="w-20 text-right text-gray-500 dark:text-gray-400 shrink-0">
+                        {r.total_tokens.toLocaleString()} <span className="text-[10px] text-gray-400">({pct}%)</span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {summary.byOperation.length > 0 && (
+            <div>
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2.5">By Operation</p>
+              <div className="space-y-2.5">
+                {summary.byOperation.map(r => {
+                  const pct = total ? Math.round((r.total_tokens / total) * 100) : 0;
+                  return (
+                    <div key={r.operation} className="flex items-center gap-3 text-sm">
+                      <span className="w-40 truncate capitalize text-gray-700 dark:text-gray-200">{r.operation.replace(/_/g, ' ')}</span>
+                      <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-full h-2.5">
+                        <div className="bg-indigo-400 h-2.5 rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="w-20 text-right text-gray-500 dark:text-gray-400 shrink-0">
+                        {r.total_tokens.toLocaleString()} <span className="text-[10px] text-gray-400">({r.count})</span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function StatsPage() {
   const { stats, loading } = useStats();
+  const { summary: tokenSummary } = useTokenUsage();
 
   if (loading || !stats) return <p className="text-gray-500 dark:text-gray-400">Loading stats...</p>;
 
@@ -47,35 +112,13 @@ export default function StatsPage() {
           ))}
         </Section>
 
-        <Section title="Mau Votes">
-          {stats.mauVotes.map(v => (
-            <StatBar
-              key={v.mau_vote}
-              label={v.mau_vote || 'No vote'}
-              count={v.count}
-              total={stats.total}
-              color={VOTE_COLORS[v.mau_vote?.toLowerCase()] || 'bg-gray-400'}
-            />
-          ))}
-        </Section>
-
-        <Section title="Luke Votes">
-          {stats.lukeVotes.map(v => (
-            <StatBar
-              key={v.luke_vote}
-              label={v.luke_vote || 'No vote'}
-              count={v.count}
-              total={stats.total}
-              color={VOTE_COLORS[v.luke_vote?.toLowerCase()] || 'bg-gray-400'}
-            />
-          ))}
-        </Section>
-
         <Section title="Internal vs External">
           {stats.types.map(t => (
             <StatBar key={t.type} label={t.type || 'Unknown'} count={t.count} total={stats.total} color="bg-teal-500" />
           ))}
         </Section>
+
+        {tokenSummary && <TokenSection summary={tokenSummary} />}
       </div>
     </div>
   );

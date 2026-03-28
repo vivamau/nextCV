@@ -1,0 +1,1145 @@
+openapi: 3.0.3
+info:
+  title: NextCV API
+  description: REST API for the NextCV candidate management system with AI-powered skill extraction and semantic matching.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3001
+    description: Local development
+
+tags:
+  - name: candidates
+    description: Candidate profiles, resumes, skills and links
+  - name: tors
+    description: Terms of Reference (job descriptions)
+  - name: vacancies
+    description: Open positions and candidate-vacancy matching
+  - name: settings
+    description: LLM configuration and token usage
+  - name: health
+
+paths:
+
+  # ── Health ────────────────────────────────────────────────────────────────
+
+  /api/health:
+    get:
+      tags: [health]
+      summary: Health check
+      responses:
+        '200':
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  # ── Candidates ────────────────────────────────────────────────────────────
+
+  /api/candidates:
+    get:
+      tags: [candidates]
+      summary: List candidates
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: nationality
+          in: query
+          schema: { type: string }
+        - name: gender
+          in: query
+          schema: { type: string }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+        - name: sort_by
+          in: query
+          schema: { type: string, example: job_application }
+        - name: sort_dir
+          in: query
+          schema: { type: string, enum: [asc, desc], default: asc }
+      responses:
+        '200':
+          description: Paginated candidate list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CandidateSummary'
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+
+  /api/candidates/stats:
+    get:
+      tags: [candidates]
+      summary: Candidate statistics (nationalities, genders, types)
+      responses:
+        '200':
+          description: Aggregated stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateStats'
+
+  /api/candidates/index-all:
+    post:
+      tags: [candidates]
+      summary: Index all candidates into the vector database
+      responses:
+        '200':
+          description: Number of candidates indexed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  indexed:
+                    type: integer
+
+  /api/candidates/{id}:
+    get:
+      tags: [candidates]
+      summary: Get candidate detail (profile + resume + skills + vacancies)
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Candidate detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  candidate:
+                    $ref: '#/components/schemas/Candidate'
+                  resume:
+                    $ref: '#/components/schemas/Resume'
+                  skills:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Skill'
+                  vacancies:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/VacancyMatch'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/candidates/{id}/resume:
+    get:
+      tags: [candidates]
+      summary: Get candidate resume text
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Resume text
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resume'
+
+  /api/candidates/{id}/skills:
+    get:
+      tags: [candidates]
+      summary: Get candidate skills
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Skills list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Skill'
+
+  /api/candidates/{id}/links:
+    get:
+      tags: [candidates]
+      summary: Get candidate links (LinkedIn, GitHub, etc.)
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Links list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Link'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/candidates/{id}/index:
+    post:
+      tags: [candidates]
+      summary: Index a single candidate into the vector database
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Indexed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/candidates/{id}/extract-skills:
+    post:
+      tags: [candidates]
+      summary: Extract skills from resume using LLM
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Extracted skills
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  skills:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '502':
+          $ref: '#/components/responses/LlmError'
+
+  /api/candidates/{id}/extract-links:
+    post:
+      tags: [candidates]
+      summary: Extract profile links from resume using LLM
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Extracted links
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  links:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Link'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '502':
+          $ref: '#/components/responses/LlmError'
+
+  # ── TORs ──────────────────────────────────────────────────────────────────
+
+  /api/tors:
+    get:
+      tags: [tors]
+      summary: List all TORs
+      responses:
+        '200':
+          description: TOR list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tor'
+    post:
+      tags: [tors]
+      summary: Create a TOR (supports multipart file upload)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                va_link:
+                  type: string
+                  format: uri
+                file:
+                  type: string
+                  format: binary
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                va_link:
+                  type: string
+                  format: uri
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/tors/index-all:
+    post:
+      tags: [tors]
+      summary: Index all TORs into the vector database
+      responses:
+        '200':
+          description: Number of TORs indexed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  indexed:
+                    type: integer
+
+  /api/tors/{id}:
+    get:
+      tags: [tors]
+      summary: Get a TOR by ID
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: TOR detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TorDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [tors]
+      summary: Update a TOR (supports multipart file upload)
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                va_link:
+                  type: string
+                  format: uri
+                file:
+                  type: string
+                  format: binary
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                va_link:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Number of rows changed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  changes:
+                    type: integer
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [tors]
+      summary: Delete a TOR
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  changes:
+                    type: integer
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/tors/{id}/skills:
+    get:
+      tags: [tors]
+      summary: Get skills for a TOR
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Skills with weights
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TorSkill'
+    put:
+      tags: [tors]
+      summary: Replace all skills for a TOR
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [skills]
+              properties:
+                skills:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      skill:
+                        type: string
+                      weight:
+                        type: integer
+                        minimum: 1
+                        maximum: 5
+      responses:
+        '200':
+          description: Updated skills
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  skills:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TorSkill'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/tors/{id}/extract-skills:
+    post:
+      tags: [tors]
+      summary: Extract skills from TOR document using LLM
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Extracted skills
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  skills:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '502':
+          $ref: '#/components/responses/LlmError'
+
+  # ── Vacancies ─────────────────────────────────────────────────────────────
+
+  /api/vacancies:
+    get:
+      tags: [vacancies]
+      summary: List all vacancies
+      responses:
+        '200':
+          description: Vacancy list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Vacancy'
+    post:
+      tags: [vacancies]
+      summary: Create a vacancy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VacancyInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/vacancies/{id}:
+    get:
+      tags: [vacancies]
+      summary: Get a vacancy by ID
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Vacancy detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vacancy'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [vacancies]
+      summary: Update a vacancy
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VacancyInput'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  changes:
+                    type: integer
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [vacancies]
+      summary: Delete a vacancy
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  changes:
+                    type: integer
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/vacancies/{id}/candidates:
+    get:
+      tags: [vacancies]
+      summary: List candidates linked to a vacancy
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Candidates with match scores
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VacancyCandidate'
+
+  /api/vacancies/{id}/candidates/{candidateId}:
+    post:
+      tags: [vacancies]
+      summary: Link a candidate to a vacancy
+      parameters:
+        - $ref: '#/components/parameters/id'
+        - name: candidateId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Linked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+    delete:
+      tags: [vacancies]
+      summary: Unlink a candidate from a vacancy
+      parameters:
+        - $ref: '#/components/parameters/id'
+        - name: candidateId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Unlinked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+
+  /api/vacancies/{id}/candidates/add-all:
+    post:
+      tags: [vacancies]
+      summary: Link all candidates in the database to a vacancy
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Number of candidates added
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  count:
+                    type: integer
+
+  /api/vacancies/{id}/rank:
+    get:
+      tags: [vacancies]
+      summary: Rank linked candidates by semantic similarity to the vacancy's TOR
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Ranked candidates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    candidate_id:
+                      type: integer
+                    similarity:
+                      type: number
+                      description: Cosine similarity score (0–100)
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /api/vacancies/{id}/rank-candidates:
+    get:
+      tags: [vacancies]
+      summary: Rank all candidates in the DB against the vacancy's TOR (top 30)
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Top-ranked candidates with metadata
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/CandidateSummary'
+                    - type: object
+                      properties:
+                        similarity:
+                          type: number
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  # ── Settings ──────────────────────────────────────────────────────────────
+
+  /api/settings:
+    get:
+      tags: [settings]
+      summary: Get all settings
+      responses:
+        '200':
+          description: Current settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settings'
+    put:
+      tags: [settings]
+      summary: Update LLM settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingsInput'
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/settings/ollama/models:
+    get:
+      tags: [settings]
+      summary: List available Ollama models
+      parameters:
+        - name: url
+          in: query
+          description: Ollama base URL (defaults to saved setting)
+          schema: { type: string, format: uri }
+      responses:
+        '200':
+          description: Model names
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '502':
+          description: Ollama unreachable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/settings/token-usage/summary:
+    get:
+      tags: [settings]
+      summary: Get token usage summary (totals, by provider+model, by operation)
+      responses:
+        '200':
+          description: Token usage summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenSummary'
+
+  /api/settings/token-usage:
+    get:
+      tags: [settings]
+      summary: Get token usage records
+      parameters:
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+        - name: group_by
+          in: query
+          schema: { type: string, enum: [day, operation, model] }
+        - name: limit
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Token usage records or aggregated rows
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+# ── Reusable components ──────────────────────────────────────────────────────
+
+components:
+
+  parameters:
+    id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    UnprocessableEntity:
+      description: Business logic error (e.g. no LLM configured, no TOR linked)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    LlmError:
+      description: LLM call failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+
+    CandidateSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        job_application:
+          type: string
+        type:
+          type: string
+        nationality:
+          type: string
+        gender:
+          type: string
+        age:
+          type: integer
+        wfp_jobs_applied:
+          type: integer
+        skills_match_score:
+          type: string
+          enum: [Excellent, Good, Fair, Poor]
+
+    Candidate:
+      allOf:
+        - $ref: '#/components/schemas/CandidateSummary'
+        - type: object
+          properties:
+            language_skill:
+              type: string
+
+    Resume:
+      type: object
+      properties:
+        resume_text:
+          type: string
+          nullable: true
+
+    Skill:
+      type: object
+      properties:
+        skill:
+          type: string
+        llmExtracted:
+          type: boolean
+
+    Link:
+      type: object
+      properties:
+        id:
+          type: integer
+        platform:
+          type: string
+        url:
+          type: string
+          format: uri
+        username:
+          type: string
+          nullable: true
+
+    VacancyMatch:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        skills_match_score:
+          type: string
+          nullable: true
+        similarity:
+          type: number
+          nullable: true
+        matched_skills:
+          type: string
+          nullable: true
+        added_at:
+          type: string
+          format: date-time
+
+    CandidateStats:
+      type: object
+      properties:
+        total:
+          type: integer
+        nationalities:
+          type: array
+          items:
+            type: object
+            properties:
+              nationality:
+                type: string
+              count:
+                type: integer
+        genders:
+          type: array
+          items:
+            type: object
+            properties:
+              gender:
+                type: string
+              count:
+                type: integer
+        types:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              count:
+                type: integer
+
+    Tor:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        va_link:
+          type: string
+          format: uri
+          nullable: true
+        file_name:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    TorDetail:
+      allOf:
+        - $ref: '#/components/schemas/Tor'
+        - type: object
+          properties:
+            file_content:
+              type: string
+              nullable: true
+
+    TorSkill:
+      type: object
+      properties:
+        id:
+          type: integer
+        skill:
+          type: string
+        weight:
+          type: integer
+          minimum: 1
+          maximum: 5
+
+    VacancyInput:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        tor_id:
+          type: integer
+          nullable: true
+        opened_at:
+          type: string
+          format: date
+          nullable: true
+        closed_at:
+          type: string
+          format: date
+          nullable: true
+
+    Vacancy:
+      allOf:
+        - $ref: '#/components/schemas/VacancyInput'
+        - type: object
+          properties:
+            id:
+              type: integer
+            tor_name:
+              type: string
+              nullable: true
+            total_potential_score:
+              type: number
+
+    VacancyCandidate:
+      allOf:
+        - $ref: '#/components/schemas/CandidateSummary'
+        - type: object
+          properties:
+            weighted_score:
+              type: number
+              nullable: true
+            matched_skills:
+              type: array
+              items:
+                type: object
+                properties:
+                  skill:
+                    type: string
+                  llm_extracted:
+                    type: integer
+
+    Settings:
+      type: object
+      properties:
+        llm_provider:
+          type: string
+          enum: [none, ollama]
+        llm_model:
+          type: string
+        ollama_url:
+          type: string
+          format: uri
+        ollama_api_key:
+          type: string
+
+    SettingsInput:
+      type: object
+      required: [llm_provider]
+      properties:
+        llm_provider:
+          type: string
+          enum: [none, ollama]
+        llm_model:
+          type: string
+        ollama_url:
+          type: string
+          format: uri
+        ollama_api_key:
+          type: string
+
+    TokenSummary:
+      type: object
+      properties:
+        totalTokens:
+          type: integer
+        totalPromptTokens:
+          type: integer
+        totalCompletionTokens:
+          type: integer
+        byModel:
+          type: array
+          items:
+            type: object
+            properties:
+              provider:
+                type: string
+              model:
+                type: string
+              total_tokens:
+                type: integer
+              prompt_tokens:
+                type: integer
+              completion_tokens:
+                type: integer
+              count:
+                type: integer
+        byOperation:
+          type: array
+          items:
+            type: object
+            properties:
+              operation:
+                type: string
+              total_tokens:
+                type: integer
+              count:
+                type: integer

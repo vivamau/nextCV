@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
-import { Trash2, User, ChevronUp, ChevronDown } from 'lucide-react';
+import { Trash2, User, ChevronUp, ChevronDown, Download } from 'lucide-react';
 import { useState, useMemo } from 'react';
+import ExcelJS from 'exceljs';
 
 export default function VacancyCandidateTable({ candidates, ranking, onRemove, removingId, totalPotentialScore = 0 }) {
   const navigate = useNavigate();
@@ -76,6 +77,62 @@ export default function VacancyCandidateTable({ candidates, ranking, onRemove, r
     setSortConfig({ key, direction });
   };
 
+  const exportToXls = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Candidates');
+
+    sheet.columns = [
+      { header: 'Candidate ID', key: 'id', width: 14 },
+      { header: 'Job Application', key: 'job_application', width: 30 },
+      { header: 'Type', key: 'type', width: 14 },
+      { header: 'Nationality', key: 'nationality', width: 18 },
+      { header: 'Gender', key: 'gender', width: 10 },
+      { header: 'Age', key: 'age', width: 8 },
+      { header: 'WFP Jobs Applied', key: 'wfp_jobs_applied', width: 18 },
+      { header: 'AI Score', key: 'ai_score', width: 12 },
+      { header: 'Weighted Score', key: 'weighted_score', width: 16 },
+      { header: 'Semantic Match %', key: 'semantic', width: 18 },
+      { header: 'Matched Skills', key: 'matched_skills', width: 40 },
+    ];
+
+    // Style header row
+    sheet.getRow(1).font = { bold: true };
+    sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+
+    sortedCandidates.forEach(c => {
+      const semanticScore = ranking[c.id];
+      const semanticPct = semanticScore !== undefined ? normalizeSemantic(semanticScore) : null;
+      const skills = Array.isArray(c.matched_skills)
+        ? c.matched_skills.map(s => s.skill).join(', ')
+        : typeof c.matched_skills === 'string'
+          ? c.matched_skills
+          : '';
+
+      sheet.addRow({
+        id: c.id,
+        job_application: c.job_application,
+        type: c.type,
+        nationality: c.nationality,
+        gender: c.gender,
+        age: c.age,
+        wfp_jobs_applied: c.wfp_jobs_applied ?? null,
+        ai_score: c.skills_match_score ?? null,
+        weighted_score: c.weighted_score !== undefined ? Number(normalize(c.weighted_score).toFixed(1)) : null,
+        semantic: semanticPct !== null ? `${semanticPct}%` : null,
+        matched_skills: skills,
+      });
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `candidates_${filterType === 'above_average' ? 'top_tier' : 'all'}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const SortIcon = ({ colKey }) => {
     if (sortConfig.key !== colKey) return <div className="w-3 h-3 ml-1 opacity-0 group-hover:opacity-30"><ChevronUp size={12} /></div>;
     return sortConfig.direction === 'asc' ? <ChevronUp size={12} className="ml-1 text-blue-500" /> : <ChevronDown size={12} className="ml-1 text-blue-500" />;
@@ -101,12 +158,23 @@ export default function VacancyCandidateTable({ candidates, ranking, onRemove, r
           </select>
         </div>
         
-        {filterType === 'above_average' && (
-          <div className="flex items-center gap-2 px-3 py-1 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full border border-green-100 dark:border-green-800 animate-in fade-in slide-in-from-right-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-[10px] font-bold uppercase tracking-tight">Top Talent View Active</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2 ml-auto">
+          {filterType === 'above_average' && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full border border-green-100 dark:border-green-800 animate-in fade-in slide-in-from-right-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-[10px] font-bold uppercase tracking-tight">Top Talent View Active</span>
+            </div>
+          )}
+          <button
+            onClick={exportToXls}
+            disabled={sortedCandidates.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 dark:border-gray-600 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 transition-colors"
+            title={`Export ${sortedCandidates.length} candidate(s) to Excel`}
+          >
+            <Download size={13} />
+            Export XLS ({sortedCandidates.length})
+          </button>
+        </div>
       </div>
 
       <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm">

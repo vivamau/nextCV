@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Settings, RefreshCw, CheckCircle, AlertCircle, Loader } from 'lucide-react';
-import { useSettings, saveSettings, fetchOllamaModels } from '../../hooks/useSettings';
+import { Settings, RefreshCw, CheckCircle, AlertCircle, Loader, Zap } from 'lucide-react';
+import { useSettings, saveSettings, fetchOllamaModels, useTokenUsage } from '../../hooks/useSettings';
 
 const PROVIDERS = [
   { value: 'none', label: 'None (disabled)' },
@@ -19,6 +19,73 @@ function StatusBadge({ status }) {
     <span className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border ${cls}`}>
       <Icon size={13} /> {text}
     </span>
+  );
+}
+
+function TokenUsagePanel() {
+  const { summary, loading } = useTokenUsage();
+
+  if (loading) return <p className="text-sm text-gray-400 dark:text-gray-500">Loading token usage...</p>;
+  if (!summary) return null;
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-4">
+      <div className="flex items-center gap-2">
+        <Zap size={16} className="text-yellow-500" />
+        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Token Usage</h2>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: 'Total', value: summary.totalTokens },
+          { label: 'Prompt', value: summary.totalPromptTokens },
+          { label: 'Completion', value: summary.totalCompletionTokens },
+        ].map(({ label, value }) => (
+          <div key={label} className="bg-gray-50 dark:bg-gray-900/40 rounded-lg p-3 text-center">
+            <p className="text-lg font-bold text-gray-800 dark:text-gray-100">{value.toLocaleString()}</p>
+            <p className="text-[10px] uppercase font-semibold text-gray-400 tracking-wide mt-0.5">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      {summary.byModel.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">By Provider &amp; Model</p>
+          <div className="space-y-1.5">
+            {summary.byModel.map(row => (
+              <div key={`${row.provider}/${row.model}`} className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 uppercase">{row.provider}</span>
+                  <span className="text-gray-700 dark:text-gray-300 truncate">{row.model}</span>
+                </div>
+                <div className="shrink-0 ml-2 text-right">
+                  <span className="text-gray-600 dark:text-gray-300">{row.total_tokens.toLocaleString()}</span>
+                  <span className="text-[10px] text-gray-400 ml-1">({row.count} calls · ↑{row.prompt_tokens.toLocaleString()} ↓{row.completion_tokens.toLocaleString()})</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {summary.byOperation.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">By Operation</p>
+          <div className="space-y-1.5">
+            {summary.byOperation.map(row => (
+              <div key={row.operation} className="flex items-center justify-between text-sm">
+                <span className="text-gray-700 dark:text-gray-300 capitalize">{row.operation.replace(/_/g, ' ')}</span>
+                <span className="text-gray-500 dark:text-gray-400 shrink-0 ml-2">{row.total_tokens.toLocaleString()} <span className="text-[10px] text-gray-400">({row.count} calls)</span></span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {summary.totalTokens === 0 && (
+        <p className="text-sm text-gray-400 italic">No token usage recorded yet.</p>
+      )}
+    </div>
   );
 }
 
@@ -80,8 +147,8 @@ export default function SettingsPage() {
   if (loading) return <p className="text-gray-500 dark:text-gray-400">Loading...</p>;
 
   return (
-    <div className="max-w-xl">
-      <div className="flex items-center gap-2 mb-6">
+    <div className="max-w-xl space-y-6">
+      <div className="flex items-center gap-2">
         <Settings size={20} className="text-gray-500 dark:text-gray-400" />
         <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Settings</h1>
       </div>
@@ -183,6 +250,8 @@ export default function SettingsPage() {
           </button>
         </div>
       </form>
+
+      <TokenUsagePanel />
     </div>
   );
 }

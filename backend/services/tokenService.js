@@ -22,8 +22,10 @@ function getTokenSummary(db = getDb()) {
                                COALESCE(SUM(prompt_tokens), 0) as totalPromptTokens,
                                COALESCE(SUM(completion_tokens), 0) as totalCompletionTokens
                         FROM token_usage`),
-      db.all.bind(db, `SELECT model, SUM(total_tokens) as total_tokens, COUNT(*) as count
-                        FROM token_usage GROUP BY model ORDER BY total_tokens DESC`),
+      db.all.bind(db, `SELECT provider, model, SUM(total_tokens) as total_tokens,
+                               SUM(prompt_tokens) as prompt_tokens, SUM(completion_tokens) as completion_tokens,
+                               COUNT(*) as count
+                        FROM token_usage GROUP BY provider, model ORDER BY total_tokens DESC`),
       db.all.bind(db, `SELECT operation, SUM(total_tokens) as total_tokens, COUNT(*) as count
                         FROM token_usage GROUP BY operation ORDER BY total_tokens DESC`),
     ];

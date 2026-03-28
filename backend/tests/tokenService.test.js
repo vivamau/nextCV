@@ -84,16 +84,21 @@ describe('getTokenSummary', () => {
     expect(summary.totalCompletionTokens).toBe(130);
   });
 
-  test('groups by model', async () => {
+  test('groups by provider and model', async () => {
     await logTokenUsage({ provider: 'ollama', model: 'llama3', operation: 'extract_skills', promptTokens: 100, completionTokens: 50 }, db);
     await logTokenUsage({ provider: 'ollama', model: 'mistral', operation: 'extract_skills', promptTokens: 200, completionTokens: 80 }, db);
+    await logTokenUsage({ provider: 'gemini', model: 'llama3', operation: 'extract_skills', promptTokens: 300, completionTokens: 100 }, db);
 
     const summary = await getTokenSummary(db);
-    expect(summary.byModel).toHaveLength(2);
-    const llama = summary.byModel.find(m => m.model === 'llama3');
+    expect(summary.byModel).toHaveLength(3);
+    const llama = summary.byModel.find(m => m.provider === 'ollama' && m.model === 'llama3');
     expect(llama.total_tokens).toBe(150);
-    const mistral = summary.byModel.find(m => m.model === 'mistral');
+    expect(llama.prompt_tokens).toBe(100);
+    expect(llama.completion_tokens).toBe(50);
+    const mistral = summary.byModel.find(m => m.provider === 'ollama' && m.model === 'mistral');
     expect(mistral.total_tokens).toBe(280);
+    const geminiLlama = summary.byModel.find(m => m.provider === 'gemini' && m.model === 'llama3');
+    expect(geminiLlama.total_tokens).toBe(400);
   });
 
   test('groups by operation', async () => {
