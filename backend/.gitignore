@@ -2,7 +2,11 @@ node_modules/
 .env
 coverage/
 data/*.sqlite
+data/*.sqlite-shm
+data/*.sqlite-wal
 data/*.db
 data/*.xlsx
 data/*.xls
 data/lancedb/
+data/**
+!data/.gitkeep
