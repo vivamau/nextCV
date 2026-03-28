@@ -41,7 +41,7 @@ async function extractSkillsFromResume(resumeText, config) {
     skills: skills
       .map(s => {
         if (typeof s === 'string') return s.trim();
-        if (typeof s === 'object' && s.skill) return String(s.skill).trim();
+        if (typeof s === 'object' && s !== null && s.skill) return String(s.skill).trim();
         return null;
       })
       .filter(s => s && s.length > 1),
@@ -102,7 +102,7 @@ async function extractSkillsFromTor(torText, config) {
     skills: skills
       .map(s => {
         if (typeof s === 'string' || typeof s === 'number') return { skill: String(s).trim(), weight: 3 };
-        if (typeof s === 'object' && s.skill) {
+        if (typeof s === 'object' && s !== null && s.skill) {
           return {
             skill: String(s.skill).trim(),
             weight: typeof s.weight === 'number' ? s.weight : 3

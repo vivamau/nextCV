@@ -3,7 +3,7 @@ jest.mock('ollama');
 
 const axios = require('axios');
 const { Ollama } = require('ollama');
-const { extractSkillsFromTor, isCloudModel } = require('../services/llmService');
+const { extractSkillsFromTor, extractSkillsFromResume, extractLinksFromResume, isCloudModel } = require('../services/llmService');
 
 const LOCAL_CONFIG  = { ollamaUrl: 'http://localhost:11434', model: 'qwen3.5:4b',  apiKey: null };
 const CLOUD_CONFIG  = { ollamaUrl: 'http://localhost:11434', model: 'glm-5:cloud', apiKey: 'my-key' };
@@ -198,5 +198,137 @@ describe('extractSkillsFromTor — guards', () => {
     axios.post.mockResolvedValueOnce({ data: { response: '["Python",42]' } });
     const result = await extractSkillsFromTor(TOR_TEXT, LOCAL_CONFIG);
     expect(result.skills.map(s => s.skill)).toContain('42');
+  });
+
+  test('handles object skills with weight', async () => {
+    axios.post.mockResolvedValueOnce({ data: { response: '[{"skill":"Python","weight":5},{"skill":"SQL","weight":2}]' } });
+    const result = await extractSkillsFromTor(TOR_TEXT, LOCAL_CONFIG);
+    const python = result.skills.find(s => s.skill === 'Python');
+    expect(python.weight).toBe(5);
+    const sql = result.skills.find(s => s.skill === 'SQL');
+    expect(sql.weight).toBe(2);
+  });
+
+  test('defaults weight to 3 when object skill has no numeric weight', async () => {
+    axios.post.mockResolvedValueOnce({ data: { response: '[{"skill":"Python"}]' } });
+    const result = await extractSkillsFromTor(TOR_TEXT, LOCAL_CONFIG);
+    expect(result.skills[0].weight).toBe(3);
+  });
+
+  test('filters null items from skills array', async () => {
+    axios.post.mockResolvedValueOnce({ data: { response: '[{"skill":"Python"},null,{"noSkillKey":"x"}]' } });
+    const result = await extractSkillsFromTor(TOR_TEXT, LOCAL_CONFIG);
+    expect(result.skills).toHaveLength(1);
+    expect(result.skills[0].skill).toBe('Python');
+  });
+});
+
+const RESUME_TEXT = 'Alice has 5 years of Python and SQL experience.';
+
+// --- extractSkillsFromResume ---
+describe('extractSkillsFromResume — local model', () => {
+  test('returns skills array from JSON response', async () => {
+    axios.post.mockResolvedValueOnce({ data: { response: '["Python","SQL"]', prompt_eval_count: 100, eval_count: 30 } });
+    const result = await extractSkillsFromResume(RESUME_TEXT, LOCAL_CONFIG);
+    expect(result.skills).toContain('Python');
+    expect(result.skills).toContain('SQL');
+    expect(result.promptTokens).toBe(100);
+    expect(result.completionTokens).toBe(30);
+  });
+
+  test('throws when resume text is empty', async () => {
+    await expect(extractSkillsFromResume('', LOCAL_CONFIG)).rejects.toThrow('Resume text is empty');
+  });
+
+  test('extracts JSON array embedded in extra text', async () => {
+    axios.post.mockResolvedValueOnce({ data: { response: 'Here are skills: ["Python","SQL"] end.' } });
+    const result = await extractSkillsFromResume(RESUME_TEXT, LOCAL_CONFIG);
+    expect(result.skills).toContain('Python');
+  });
+
+  test('throws when response is unparseable', async () => {
+    axios.post.mockResolvedValueOnce({ data: { response: 'I cannot help with that.' } });
+    await expect(extractSkillsFromResume(RESUME_TEXT, LOCAL_CONFIG)).rejects.toThrow('unparseable');
+  });
+
+  test('throws when LLM returns non-array JSON', async () => {
+    axios.post.mockResolvedValueOnce({ data: { response: '{"skills":["Python"]}' } });
+    await expect(extractSkillsFromResume(RESUME_TEXT, LOCAL_CONFIG)).rejects.toThrow('JSON array');
+  });
+
+  test('handles skills as objects with skill key', async () => {
+    axios.post.mockResolvedValueOnce({ data: { response: '[{"skill":"Python"},{"skill":"SQL"}]' } });
+    const result = await extractSkillsFromResume(RESUME_TEXT, LOCAL_CONFIG);
+    expect(result.skills).toContain('Python');
+  });
+
+  test('filters out null and short skills', async () => {
+    axios.post.mockResolvedValueOnce({ data: { response: '["Python","","x",null]' } });
+    const result = await extractSkillsFromResume(RESUME_TEXT, LOCAL_CONFIG);
+    expect(result.skills).toEqual(['Python']);
+  });
+
+  test('handles double-encoded JSON string', async () => {
+    axios.post.mockResolvedValueOnce({ data: { response: '"[\\"Python\\",\\"SQL\\"]"' } });
+    const result = await extractSkillsFromResume(RESUME_TEXT, LOCAL_CONFIG);
+    expect(result.skills).toContain('Python');
+  });
+});
+
+describe('extractSkillsFromResume — cloud model', () => {
+  test('uses Ollama SDK for cloud models', async () => {
+    mockGenerateStream.mockReturnValueOnce(makeStream([{ response: '["Python","SQL"]' }]));
+    const result = await extractSkillsFromResume(RESUME_TEXT, CLOUD_CONFIG);
+    expect(mockGenerateStream).toHaveBeenCalled();
+    expect(result.skills).toContain('Python');
+  });
+});
+
+// --- extractLinksFromResume ---
+describe('extractLinksFromResume', () => {
+  const VALID_LINK = { platform: 'linkedin', url: 'https://linkedin.com/in/alice', username: 'alice' };
+
+  test('throws when resume text is empty', async () => {
+    await expect(extractLinksFromResume('', LOCAL_CONFIG)).rejects.toThrow('Resume text is empty');
+  });
+
+  test('returns valid links array', async () => {
+    axios.post.mockResolvedValueOnce({ data: { response: JSON.stringify([VALID_LINK]) } });
+    const result = await extractLinksFromResume(RESUME_TEXT, LOCAL_CONFIG);
+    expect(result.links).toHaveLength(1);
+    expect(result.links[0].platform).toBe('linkedin');
+    expect(result.links[0].url).toBe(VALID_LINK.url);
+    expect(result.links[0].username).toBe('alice');
+  });
+
+  test('sets username to null when not provided', async () => {
+    const link = { platform: 'github', url: 'https://github.com/alice' };
+    axios.post.mockResolvedValueOnce({ data: { response: JSON.stringify([link]) } });
+    const result = await extractLinksFromResume(RESUME_TEXT, LOCAL_CONFIG);
+    expect(result.links[0].username).toBeNull();
+  });
+
+  test('filters out links with invalid platform', async () => {
+    const link = { platform: 'twitter', url: 'https://twitter.com/alice' };
+    axios.post.mockResolvedValueOnce({ data: { response: JSON.stringify([link]) } });
+    const result = await extractLinksFromResume(RESUME_TEXT, LOCAL_CONFIG);
+    expect(result.links).toHaveLength(0);
+  });
+
+  test('filters out links missing url or platform', async () => {
+    const links = [{ platform: 'linkedin' }, { url: 'https://github.com' }, null, 'not-an-object'];
+    axios.post.mockResolvedValueOnce({ data: { response: JSON.stringify(links) } });
+    const result = await extractLinksFromResume(RESUME_TEXT, LOCAL_CONFIG);
+    expect(result.links).toHaveLength(0);
+  });
+
+  test('throws when response is unparseable', async () => {
+    axios.post.mockResolvedValueOnce({ data: { response: 'no links here' } });
+    await expect(extractLinksFromResume(RESUME_TEXT, LOCAL_CONFIG)).rejects.toThrow('unparseable');
+  });
+
+  test('throws when LLM returns non-array JSON', async () => {
+    axios.post.mockResolvedValueOnce({ data: { response: '{"links":[]}' } });
+    await expect(extractLinksFromResume(RESUME_TEXT, LOCAL_CONFIG)).rejects.toThrow('JSON array');
   });
 });

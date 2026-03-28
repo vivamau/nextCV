@@ -231,7 +231,7 @@ function insertLinks(candidateId, links, db = getDb()) {
       links.forEach((link) => {
         stmt.run([candidateId, link.platform, link.url, link.username || null], (runErr) => {
           if (failed) return;
-          if (runErr) { failed = true; return reject(runErr); }
+          if (runErr) { failed = true; stmt.finalize(); return reject(runErr); }
           if (--pending === 0) { stmt.finalize(); resolve(); }
         });
       });

@@ -92,6 +92,38 @@ describe('GET /api/settings/ollama/models', () => {
   });
 });
 
+// --- GET /api/settings/token-usage/summary ---
+describe('GET /api/settings/token-usage/summary', () => {
+  test('returns summary with zero totals when empty', async () => {
+    const res = await request(app).get('/api/settings/token-usage/summary');
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('totalTokens');
+    expect(res.body.totalTokens).toBe(0);
+    expect(Array.isArray(res.body.byModel)).toBe(true);
+    expect(Array.isArray(res.body.byOperation)).toBe(true);
+  });
+});
+
+// --- GET /api/settings/token-usage ---
+describe('GET /api/settings/token-usage', () => {
+  test('returns empty array when no records', async () => {
+    const res = await request(app).get('/api/settings/token-usage');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+  });
+
+  test('accepts groupBy day query param', async () => {
+    const res = await request(app).get('/api/settings/token-usage?group_by=day');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+  });
+
+  test('accepts limit query param', async () => {
+    const res = await request(app).get('/api/settings/token-usage?limit=5');
+    expect(res.status).toBe(200);
+  });
+});
+
 // --- 500 error paths ---
 describe('500 error handling', () => {
   beforeEach(() => { mockDb.close(); });
@@ -103,6 +135,16 @@ describe('500 error handling', () => {
 
   test('PUT /api/settings returns 500', async () => {
     const res = await request(app).put('/api/settings').send({ llm_provider: 'none' });
+    expect(res.status).toBe(500);
+  });
+
+  test('GET /api/settings/token-usage/summary returns 500', async () => {
+    const res = await request(app).get('/api/settings/token-usage/summary');
+    expect(res.status).toBe(500);
+  });
+
+  test('GET /api/settings/token-usage returns 500', async () => {
+    const res = await request(app).get('/api/settings/token-usage');
     expect(res.status).toBe(500);
   });
 });

@@ -65,3 +65,39 @@
   - [x] TDD: tests for global vector searches and `/rank-candidates` endpoint in `vacancyRoutes.test.js` <!-- id: 125 -->
   - [x] Backend: updated `vectorService.rankCandidatesByTor` and added `GET /api/vacancies/:id/rank-candidates` <!-- id: 126 -->
   - [x] Frontend: Created `useSuggestedCandidates` hook and integrated match `%` UI into `AddCandidateModal` <!-- id: 127 -->
+
+- [x] Dark Mode <!-- id: 130 -->
+  - [x] Fixed `useTheme.js` hook (toggle not working under React 18 StrictMode, wrong initial value) <!-- id: 131 -->
+  - [x] Applied `dark:` Tailwind variants across all pages and components <!-- id: 132 -->
+  - [x] Fixed `SkillBadge` in `CandidateTable` missing dark mode colors <!-- id: 133 -->
+
+- [x] Token Usage UI <!-- id: 140 -->
+  - [x] Migration 011: `token_usage` table <!-- id: 141 -->
+  - [x] `tokenService.js`: `logTokenUsage`, `getTokenSummary`, `getTokenUsage` (GROUP BY provider+model) <!-- id: 142 -->
+  - [x] Settings page: `TokenUsagePanel` with totals, by-provider+model, by-operation <!-- id: 143 -->
+  - [x] Stats page: `TokenSection` with bar charts by model and operation <!-- id: 144 -->
+  - [x] `useTokenUsage` hook in `useSettings.js` <!-- id: 145 -->
+
+- [x] Swagger / OpenAPI <!-- id: 150 -->
+  - [x] `backend/swagger.yaml`: OpenAPI 3.0.3, 27 paths for all routes <!-- id: 151 -->
+  - [x] Swagger UI served at `GET /api/docs` via `swagger-ui-express` + `yamljs` <!-- id: 152 -->
+
+- [x] Vacancy Detail — Export XLS <!-- id: 160 -->
+  - [x] Installed `exceljs` (replaced `xlsx` due to High vulnerability) <!-- id: 161 -->
+  - [x] Export button in `VacancyCandidateTable` — exports filtered+sorted candidates with all columns including `job_application` <!-- id: 162 -->
+
+- [x] Vacancy Detail — Bulk Extract Skills <!-- id: 170 -->
+  - [x] `onVisibleCandidates` callback prop in `VacancyCandidateTable` to bubble filtered list to parent <!-- id: 171 -->
+  - [x] `has_ai_skills` field added to `vacancyService.getCandidatesForVacancy` response <!-- id: 172 -->
+  - [x] Extract Skills button filters to candidates without AI skills, shows count <!-- id: 173 -->
+  - [x] `ExtractSkillsModal` with cost/time warning, local LLM tip, progress bar <!-- id: 174 -->
+  - [x] Sequential `POST /api/candidates/:id/extract-skills` loop with skip/fail tracking <!-- id: 175 -->
+
+- [x] Test suite fixes and coverage recovery <!-- id: 180 -->
+  - [x] Fixed `insertSkills` call signature bug in dbService, vacancyService, candidateRoutes tests <!-- id: 181 -->
+  - [x] Updated skills endpoint tests to expect `{skill, llmExtracted}` objects <!-- id: 182 -->
+  - [x] Fixed `vectorService` test for `indexCandidate` text prefix format <!-- id: 183 -->
+  - [x] Fixed `insertLinks` not finalizing statement on error (production bug) <!-- id: 184 -->
+  - [x] Fixed `llmService.js` null-check bug (`typeof null === 'object'`) <!-- id: 185 -->
+  - [x] Added tests for extract-skills/links routes, token-usage endpoints, `has_ai_skills`, `getTokenUsage` groupBy modes, `extractSkillsFromResume`, `extractLinksFromResume` <!-- id: 186 -->
+  - [x] 320 tests passing, 87.25% branch coverage (above 85% threshold) <!-- id: 187 -->

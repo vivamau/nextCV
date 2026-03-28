@@ -256,7 +256,7 @@ describe('getCandidatesForVacancy — skill_match_count', () => {
 
     // Create candidate with overlapping skills
     candId = await insertCandidate(CANDIDATE, db);
-    await insertSkills(candId, ['Python', 'SQL', 'Leadership'], db);
+    await insertSkills(candId, ['Python', 'SQL', 'Leadership'], false, db);
 
     await addCandidateToVacancy(candId, vacId, db);
   });
@@ -283,7 +283,7 @@ describe('getCandidatesForVacancy — skill_match_count', () => {
 
   test('returns 0 when no skills overlap', async () => {
     const cand2 = await insertCandidate({ ...CANDIDATE, job_application: 'Bob (C002)' }, db);
-    await insertSkills(cand2, ['Java', 'Kotlin'], db);
+    await insertSkills(cand2, ['Java', 'Kotlin'], false, db);
     await addCandidateToVacancy(cand2, vacId, db);
     const list = await getCandidatesForVacancy(vacId, db);
     const bob = list.find(c => c.id === cand2);
@@ -299,7 +299,7 @@ describe('getCandidatesForVacancy — skill_match_count', () => {
 
   test('is case-insensitive for skill matching', async () => {
     const cand3 = await insertCandidate({ ...CANDIDATE, job_application: 'Carol (C003)' }, db);
-    await insertSkills(cand3, ['python', 'sql'], db); // lowercase
+    await insertSkills(cand3, ['python', 'sql'], false, db); // lowercase
     await addCandidateToVacancy(cand3, vacId, db);
     const list = await getCandidatesForVacancy(vacId, db);
     const carol = list.find(c => c.id === cand3);
@@ -308,9 +308,32 @@ describe('getCandidatesForVacancy — skill_match_count', () => {
 
   test('sorts candidates by weighted_score primarily', async () => {
     const cand2Id = await insertCandidate({ ...CANDIDATE, job_application: 'Bob (C002)' }, db);
-    await insertSkills(cand2Id, ['Java'], db); // 0 matches
+    await insertSkills(cand2Id, ['Java'], false, db); // 0 matches
     await addCandidateToVacancy(cand2Id, vacId, db);
     const list = await getCandidatesForVacancy(vacId, db);
     expect(list[0].weighted_score).toBeGreaterThanOrEqual(list[1].weighted_score);
+  });
+
+  test('has_ai_skills is false when all skills are manually declared', async () => {
+    const list = await getCandidatesForVacancy(vacId, db);
+    expect(list[0].has_ai_skills).toBe(false);
+  });
+
+  test('has_ai_skills is true when candidate has at least one llm_extracted skill', async () => {
+    // Use a fresh candidate so insertSkills has no prior values to preserve
+    const aiCand = await insertCandidate({ ...CANDIDATE, job_application: 'AI Cand (C098)' }, db);
+    await insertSkills(aiCand, ['Python', 'SQL'], true, db);
+    await addCandidateToVacancy(aiCand, vacId, db);
+    const list = await getCandidatesForVacancy(vacId, db);
+    const result = list.find(c => c.id === aiCand);
+    expect(result.has_ai_skills).toBe(true);
+  });
+
+  test('has_ai_skills is false when candidate has no skills', async () => {
+    const cand2 = await insertCandidate({ ...CANDIDATE, job_application: 'NoSkills (C099)' }, db);
+    await addCandidateToVacancy(cand2, vacId, db);
+    const list = await getCandidatesForVacancy(vacId, db);
+    const noSkillsCand = list.find(c => c.id === cand2);
+    expect(noSkillsCand.has_ai_skills).toBe(false);
   });
 });

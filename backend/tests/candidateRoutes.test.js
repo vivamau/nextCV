@@ -17,6 +17,22 @@ jest.mock('../services/vectorService', () => ({
   rankCandidatesByTor: jest.fn().mockResolvedValue([])
 }));
 
+jest.mock('../services/llmService', () => ({
+  extractSkillsFromResume: jest.fn(),
+  extractLinksFromResume: jest.fn(),
+}));
+
+jest.mock('../services/settingsService', () => ({
+  getAllSettings: jest.fn(),
+}));
+
+jest.mock('../services/tokenService', () => ({
+  logTokenUsage: jest.fn().mockResolvedValue(1),
+}));
+
+const { extractSkillsFromResume, extractLinksFromResume } = require('../services/llmService');
+const { getAllSettings } = require('../services/settingsService');
+
 const app = express();
 app.use(express.json());
 app.use('/api/candidates', candidateRoutes);
@@ -107,7 +123,8 @@ describe('GET /api/candidates/:id', () => {
     expect(res.body.resume).toBeDefined();
     expect(res.body.skills).toBeInstanceOf(Array);
     if (res.body.skills.length > 0) {
-      expect(typeof res.body.skills[0]).toBe('string');
+      expect(res.body.skills[0]).toHaveProperty('skill');
+      expect(res.body.skills[0]).toHaveProperty('llmExtracted');
     }
     expect(res.body.vacancies).toBeDefined();
   });
@@ -142,8 +159,8 @@ describe('GET /api/candidates/:id/skills', () => {
     const res = await request(app).get(`/api/candidates/${aliceId}/skills`);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body).toContain('Python');
-    expect(res.body).toContain('SQL');
+    expect(res.body.map(s => s.skill)).toContain('Python');
+    expect(res.body.map(s => s.skill)).toContain('SQL');
   });
 
   test('returns empty array when no skills', async () => {
@@ -342,5 +359,104 @@ describe('500 error handling', () => {
   test('GET /api/candidates/:id/skills returns 500', async () => {
     const res = await request(app).get('/api/candidates/1/skills');
     expect(res.status).toBe(500);
+  });
+});
+
+// --- POST /api/candidates/:id/extract-skills ---
+describe('POST /api/candidates/:id/extract-skills', () => {
+  beforeEach(() => {
+    extractSkillsFromResume.mockReset();
+    getAllSettings.mockReset();
+  });
+
+  test('returns 404 for unknown candidate', async () => {
+    const res = await request(app).post('/api/candidates/99999/extract-skills');
+    expect(res.status).toBe(404);
+  });
+
+  test('returns 400 when candidate has no resume text', async () => {
+    const list = await request(app).get('/api/candidates?search=Bob');
+    const bobId = list.body.data[0].id;
+    const res = await request(app).post(`/api/candidates/${bobId}/extract-skills`);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/resume text/i);
+  });
+
+  test('returns 422 when no LLM provider configured', async () => {
+    getAllSettings.mockResolvedValue({ llm_provider: 'none' });
+    const res = await request(app).post(`/api/candidates/${aliceId}/extract-skills`);
+    expect(res.status).toBe(422);
+  });
+
+  test('returns 502 when LLM call fails', async () => {
+    getAllSettings.mockResolvedValue({ llm_provider: 'ollama', llm_model: 'llama3', ollama_url: 'http://localhost:11434' });
+    extractSkillsFromResume.mockRejectedValue(new Error('LLM unavailable'));
+    const res = await request(app).post(`/api/candidates/${aliceId}/extract-skills`);
+    expect(res.status).toBe(502);
+    expect(res.body.error).toMatch(/LLM error/i);
+  });
+
+  test('returns 200 with extracted skills on success', async () => {
+    getAllSettings.mockResolvedValue({ llm_provider: 'ollama', llm_model: 'llama3', ollama_url: 'http://localhost:11434' });
+    extractSkillsFromResume.mockResolvedValue({ skills: ['Python', 'SQL'], promptTokens: 100, completionTokens: 50 });
+    const res = await request(app).post(`/api/candidates/${aliceId}/extract-skills`);
+    expect(res.status).toBe(200);
+    expect(res.body.skills).toEqual(['Python', 'SQL']);
+  });
+});
+
+// --- POST /api/candidates/:id/extract-links ---
+describe('POST /api/candidates/:id/extract-links', () => {
+  beforeEach(() => {
+    extractLinksFromResume.mockReset();
+    getAllSettings.mockReset();
+  });
+
+  test('returns 404 for unknown candidate', async () => {
+    const res = await request(app).post('/api/candidates/99999/extract-links');
+    expect(res.status).toBe(404);
+  });
+
+  test('returns 400 when candidate has no resume text', async () => {
+    const list = await request(app).get('/api/candidates?search=Bob');
+    const bobId = list.body.data[0].id;
+    const res = await request(app).post(`/api/candidates/${bobId}/extract-links`);
+    expect(res.status).toBe(400);
+  });
+
+  test('returns 422 when no LLM provider configured', async () => {
+    getAllSettings.mockResolvedValue({ llm_provider: 'none' });
+    const res = await request(app).post(`/api/candidates/${aliceId}/extract-links`);
+    expect(res.status).toBe(422);
+  });
+
+  test('returns 502 when LLM call fails', async () => {
+    getAllSettings.mockResolvedValue({ llm_provider: 'ollama', llm_model: 'llama3', ollama_url: 'http://localhost:11434' });
+    extractLinksFromResume.mockRejectedValue(new Error('LLM down'));
+    const res = await request(app).post(`/api/candidates/${aliceId}/extract-links`);
+    expect(res.status).toBe(502);
+  });
+
+  test('returns 200 with extracted links on success', async () => {
+    getAllSettings.mockResolvedValue({ llm_provider: 'ollama', llm_model: 'llama3', ollama_url: 'http://localhost:11434' });
+    const mockLinks = [{ platform: 'linkedin', url: 'https://linkedin.com/in/alice', username: 'alice' }];
+    extractLinksFromResume.mockResolvedValue({ links: mockLinks, promptTokens: 80, completionTokens: 20 });
+    const res = await request(app).post(`/api/candidates/${aliceId}/extract-links`);
+    expect(res.status).toBe(200);
+    expect(res.body.links).toEqual(mockLinks);
+  });
+});
+
+// --- GET /api/candidates/:id/links ---
+describe('GET /api/candidates/:id/links', () => {
+  test('returns 404 for unknown candidate', async () => {
+    const res = await request(app).get('/api/candidates/99999/links');
+    expect(res.status).toBe(404);
+  });
+
+  test('returns empty array when no links', async () => {
+    const res = await request(app).get(`/api/candidates/${aliceId}/links`);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
   });
 });

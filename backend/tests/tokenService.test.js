@@ -153,4 +153,40 @@ describe('getTokenUsage', () => {
     expect(rows).toHaveLength(1); // same day
     expect(rows[0].total_tokens).toBe(430);
   });
+
+  test('groups by operation', async () => {
+    await logTokenUsage({ provider: 'ollama', model: 'llama3', operation: 'extract_skills', promptTokens: 100, completionTokens: 50 }, db);
+    await logTokenUsage({ provider: 'ollama', model: 'llama3', operation: 'extract_skills', promptTokens: 50, completionTokens: 20 }, db);
+    await logTokenUsage({ provider: 'ollama', model: 'llama3', operation: 'extract_links', promptTokens: 200, completionTokens: 80 }, db);
+
+    const rows = await getTokenUsage({ groupBy: 'operation' }, db);
+    expect(rows).toHaveLength(2);
+    const skills = rows.find(r => r.operation === 'extract_skills');
+    expect(skills.total_tokens).toBe(220);
+    expect(skills.count).toBe(2);
+  });
+
+  test('groups by operation with date filter', async () => {
+    await logTokenUsage({ provider: 'ollama', model: 'llama3', operation: 'extract_skills', promptTokens: 100, completionTokens: 50 }, db);
+    const tomorrow = new Date(Date.now() + 86400000).toISOString();
+    const rows = await getTokenUsage({ groupBy: 'operation', from: tomorrow }, db);
+    expect(rows).toHaveLength(0);
+  });
+
+  test('groups by model', async () => {
+    await logTokenUsage({ provider: 'ollama', model: 'llama3', operation: 'extract_skills', promptTokens: 100, completionTokens: 50 }, db);
+    await logTokenUsage({ provider: 'ollama', model: 'mistral', operation: 'extract_links', promptTokens: 200, completionTokens: 80 }, db);
+
+    const rows = await getTokenUsage({ groupBy: 'model' }, db);
+    expect(rows).toHaveLength(2);
+    const llama = rows.find(r => r.model === 'llama3');
+    expect(llama.total_tokens).toBe(150);
+  });
+
+  test('groups by model with date filter', async () => {
+    await logTokenUsage({ provider: 'ollama', model: 'llama3', operation: 'extract_skills', promptTokens: 100, completionTokens: 50 }, db);
+    const tomorrow = new Date(Date.now() + 86400000).toISOString();
+    const rows = await getTokenUsage({ groupBy: 'model', to: tomorrow }, db);
+    expect(rows).toHaveLength(1);
+  });
 });

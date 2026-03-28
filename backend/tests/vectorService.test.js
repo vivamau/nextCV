@@ -74,13 +74,16 @@ describe('indexCandidate', () => {
     getVectorDb.mockReset();
   });
 
-  test('passes text to generateEmbedding (cleaning handled by embeddingService)', async () => {
-    const longText = 'a'.repeat(10000);
+  test('passes text to generateEmbedding with resume/skills prefix', async () => {
+    const resumeText = 'some resume text';
+    const skillsText = 'Python, SQL';
     generateEmbedding.mockResolvedValueOnce(MOCK_VECTOR);
     const db = makeMockDb([]);
     getVectorDb.mockResolvedValue(db);
-    await indexCandidate(1, longText);
-    expect(generateEmbedding).toHaveBeenCalledWith(longText);
+    await indexCandidate(1, resumeText, skillsText);
+    expect(generateEmbedding).toHaveBeenCalledWith(
+      `Resume Content:\n${resumeText}\n\nSkills:\n${skillsText}`
+    );
     getVectorDb.mockReset();
   });
 });

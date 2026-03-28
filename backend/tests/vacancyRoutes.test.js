@@ -138,6 +138,54 @@ describe('GET /api/vacancies/:id/candidates', () => {
   });
 });
 
+describe('POST /api/vacancies/:id/candidates/add-all', () => {
+  test('adds all candidates and returns ok', async () => {
+    const res = await request(app).post(`/api/vacancies/${vacId}/candidates/add-all`);
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+  });
+});
+
+describe('GET /api/vacancies/:id/rank', () => {
+  let vacWithTorForRank;
+
+  beforeEach(async () => {
+    const torId = await (async () => {
+      const { createTor } = require('../services/torService');
+      return createTor({ name: 'TOR Rank', file_content: 'text' }, mockDb);
+    })();
+    const res = await request(app).post('/api/vacancies').send({ title: 'Role for Rank', tor_id: torId });
+    vacWithTorForRank = res.body.id;
+    await request(app).post(`/api/vacancies/${vacWithTorForRank}/candidates/${candId}`);
+  });
+
+  test('returns 404 for unknown vacancy', async () => {
+    const res = await request(app).get('/api/vacancies/99999/rank');
+    expect(res.status).toBe(404);
+  });
+
+  test('returns 422 when vacancy has no TOR', async () => {
+    const res = await request(app).get(`/api/vacancies/${vacId}/rank`);
+    expect(res.status).toBe(422);
+    expect(res.body.error).toBe('Vacancy has no TOR linked');
+  });
+
+  test('returns empty array when no candidates', async () => {
+    const res2 = await request(app).post('/api/vacancies').send({ title: 'Empty role', tor_id: 1 });
+    const emptyVacId = res2.body.id;
+    const res = await request(app).get(`/api/vacancies/${emptyVacId}/rank`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+
+  test('returns ranked candidates array on success', async () => {
+    rankCandidatesByTor.mockResolvedValueOnce([{ candidate_id: candId, similarity: 72 }]);
+    const res = await request(app).get(`/api/vacancies/${vacWithTorForRank}/rank`);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+  });
+});
+
 describe('GET /api/vacancies/:id/rank-candidates', () => {
   let vacWithTor;
 
@@ -171,6 +219,23 @@ describe('GET /api/vacancies/:id/rank-candidates', () => {
   });
 });
 
+describe('rank-candidates additional branches', () => {
+  let vacWithTor2;
+  beforeEach(async () => {
+    const { createTor } = require('../services/torService');
+    const torId = await createTor({ name: 'TOR2', file_content: 'text' }, mockDb);
+    const res = await request(app).post('/api/vacancies').send({ title: 'Role2', tor_id: torId });
+    vacWithTor2 = res.body.id;
+  });
+
+  test('returns empty array when rankCandidatesByTor returns nothing', async () => {
+    rankCandidatesByTor.mockResolvedValueOnce([]);
+    const res = await request(app).get(`/api/vacancies/${vacWithTor2}/rank-candidates`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+});
+
 describe('500 error handling', () => {
   beforeEach(() => { mockDb.close(); });
 
@@ -188,5 +253,23 @@ describe('500 error handling', () => {
   });
   test('DELETE returns 500', async () => {
     expect((await request(app).delete('/api/vacancies/1')).status).toBe(500);
+  });
+  test('POST add-all returns 500', async () => {
+    expect((await request(app).post('/api/vacancies/1/candidates/add-all')).status).toBe(500);
+  });
+  test('GET candidates returns 500', async () => {
+    expect((await request(app).get('/api/vacancies/1/candidates')).status).toBe(500);
+  });
+  test('POST add candidate returns 500', async () => {
+    expect((await request(app).post('/api/vacancies/1/candidates/1')).status).toBe(500);
+  });
+  test('DELETE candidate returns 500', async () => {
+    expect((await request(app).delete('/api/vacancies/1/candidates/1')).status).toBe(500);
+  });
+  test('GET rank returns 500', async () => {
+    expect((await request(app).get('/api/vacancies/1/rank')).status).toBe(500);
+  });
+  test('GET rank-candidates returns 500', async () => {
+    expect((await request(app).get('/api/vacancies/1/rank-candidates')).status).toBe(500);
   });
 });

@@ -119,7 +119,7 @@ describe('insertSkills', () => {
   afterEach(() => db.close());
 
   test('inserts multiple skills', async () => {
-    await insertSkills(candidateId, ['Python', 'SQL', 'Communication'], db);
+    await insertSkills(candidateId, ['Python', 'SQL', 'Communication'], false, db);
     const skills = await getSkillsByCandidate(candidateId, db);
     expect(skills).toHaveLength(3);
     expect(skills.map(s => s.skill)).toContain('Python');
@@ -135,21 +135,21 @@ describe('insertSkills', () => {
   });
 
   test('replaces skills on re-import', async () => {
-    await insertSkills(candidateId, ['Python', 'SQL'], db);
-    await insertSkills(candidateId, ['Java'], db);
+    await insertSkills(candidateId, ['Python', 'SQL'], false, db);
+    await insertSkills(candidateId, ['Java'], false, db);
     const skills = await getSkillsByCandidate(candidateId, db);
     expect(skills).toHaveLength(1);
     expect(skills[0].skill).toBe('Java');
   });
 
   test('handles empty skills array gracefully', async () => {
-    await expect(insertSkills(candidateId, [], db)).resolves.toBeUndefined();
+    await expect(insertSkills(candidateId, [], false, db)).resolves.toBeUndefined();
     const skills = await getSkillsByCandidate(candidateId, db);
     expect(skills).toHaveLength(0);
   });
 
   test('handles null skills gracefully', async () => {
-    await expect(insertSkills(candidateId, null, db)).resolves.toBeUndefined();
+    await expect(insertSkills(candidateId, null, false, db)).resolves.toBeUndefined();
   });
 
   test('rejects when prepare fails (closed db after delete)', async () => {
@@ -160,7 +160,7 @@ describe('insertSkills', () => {
     // Monkey-patch prepare to simulate error
     const orig = badDb.prepare.bind(badDb);
     badDb.prepare = (sql, cb) => { cb(new Error('prepare failed')); return { run: () => {}, finalize: () => {} }; };
-    await expect(insertSkills(id, ['Python'], badDb)).rejects.toThrow('prepare failed');
+    await expect(insertSkills(id, ['Python'], false, badDb)).rejects.toThrow('prepare failed');
     badDb.prepare = orig;
     badDb.close();
   });
@@ -196,10 +196,10 @@ describe('getSkillsByCandidate', () => {
   });
 
   test('returns sorted skills', async () => {
-    await insertSkills(candidateId, ['Zebra', 'Apple', 'Mango'], db);
+    await insertSkills(candidateId, ['Zebra', 'Apple', 'Mango'], false, db);
     const skills = await getSkillsByCandidate(candidateId, db);
     expect(skills[0].skill).toBe('Apple');
-    expect(skills[2]).toBe('Zebra');
+    expect(skills[2].skill).toBe('Zebra');
   });
 });
 
