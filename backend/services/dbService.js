@@ -248,8 +248,22 @@ function getLinksByCandidate(candidateId, db = getDb()) {
   });
 }
 
+function findOrCreateCandidate(candidate, db = getDb()) {
+  return new Promise((resolve, reject) => {
+    db.get(
+      'SELECT id FROM candidates WHERE job_application = ?',
+      [candidate.job_application],
+      (err, row) => {
+        if (err) return reject(err);
+        if (row) return resolve(row.id);
+        insertCandidate(candidate, db).then(resolve).catch(reject);
+      }
+    );
+  });
+}
+
 module.exports = {
-  runMigrations, insertCandidate, upsertResume, insertSkills, insertLinks,
+  runMigrations, insertCandidate, findOrCreateCandidate, upsertResume, insertSkills, insertLinks,
   getResumeByCandidate, getSkillsByCandidate, getLinksByCandidate,
   getCandidates, getCandidateById, getStats, clearCandidates,
   getAllCandidatesForIndexing, getAllTorsForIndexing,

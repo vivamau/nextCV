@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft, Briefcase, Calendar, FileText, UserPlus,
-  X, Search, RefreshCw, Sparkles, Loader, AlertTriangle,
+  X, Search, RefreshCw, Sparkles, Loader, AlertTriangle, FileSpreadsheet,
 } from 'lucide-react';
 import {
   useVacancy, useVacancyCandidates, useVacancyRanking, useSuggestedCandidates,
@@ -10,6 +10,7 @@ import {
 } from '../../hooks/useVacancies';
 import { useCandidates } from '../../hooks/useCandidates';
 import VacancyCandidateTable from './components/VacancyCandidateTable';
+import ImportCvsModal from './components/ImportCvsModal';
 import axios from 'axios';
 import { formatDate } from '../../utils/dateUtils';
 
@@ -241,6 +242,7 @@ export default function VacancyDetailPage() {
   const [showExtractModal, setShowExtractModal] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0, skipped: 0, failed: 0, current: '' });
+  const [showImportModal, setShowImportModal] = useState(false);
 
   // Sync initial ranking from hook into local state
   useEffect(() => {
@@ -382,6 +384,12 @@ export default function VacancyDetailPage() {
               Extract Skills{candidatesWithoutSkills.length > 0 && ` (${candidatesWithoutSkills.length})`}
             </button>
             <button
+              onClick={() => setShowImportModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-md text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-300 dark:hover:border-blue-600 transition-colors"
+            >
+              <FileSpreadsheet size={13} /> Import CVs
+            </button>
+            <button
               onClick={() => setShowAdd(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
             >
@@ -429,6 +437,14 @@ export default function VacancyDetailPage() {
           existingIds={existingIds}
           onClose={() => setShowAdd(false)}
           onAdded={() => { refetch(); }}
+        />
+      )}
+
+      {showImportModal && (
+        <ImportCvsModal
+          vacancyId={id}
+          onClose={() => setShowImportModal(false)}
+          onImported={() => refetch()}
         />
       )}
     </div>

@@ -93,6 +93,14 @@
   - [x] `ExtractSkillsModal` with cost/time warning, local LLM tip, progress bar <!-- id: 174 -->
   - [x] Sequential `POST /api/candidates/:id/extract-skills` loop with skip/fail tracking <!-- id: 175 -->
 
+- [x] Per-Vacancy CV Import <!-- id: 190 -->
+  - [x] `findOrCreateCandidate` in `dbService.js` — upsert by `job_application`, returns existing id if found <!-- id: 191 -->
+  - [x] `cvImportService.js`: `parseExcelBuffer(buffer)` + `importCvsForVacancy(rows, vacancyId, db)` <!-- id: 192 -->
+  - [x] `POST /api/vacancies/:id/import-cvs` — multer file upload, parses Excel, imports + links candidates <!-- id: 193 -->
+  - [x] Frontend: `ImportCvsModal` with drag-and-drop, progress, success summary <!-- id: 194 -->
+  - [x] "Import CVs" button in vacancy detail header wires up modal <!-- id: 195 -->
+  - [x] 342 tests passing, 86.52% branch coverage <!-- id: 196 -->
+
 - [x] Test suite fixes and coverage recovery <!-- id: 180 -->
   - [x] Fixed `insertSkills` call signature bug in dbService, vacancyService, candidateRoutes tests <!-- id: 181 -->
   - [x] Updated skills endpoint tests to expect `{skill, llmExtracted}` objects <!-- id: 182 -->

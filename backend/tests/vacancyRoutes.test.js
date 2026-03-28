@@ -14,6 +14,13 @@ jest.mock('../services/vectorService', () => ({
   rankCandidatesByTor: jest.fn().mockResolvedValue([])
 }));
 
+jest.mock('../services/cvImportService', () => ({
+  parseExcelBuffer: jest.fn().mockResolvedValue([]),
+  importCvsForVacancy: jest.fn().mockResolvedValue({ imported: 0, linked: 0 }),
+}));
+
+const { parseExcelBuffer, importCvsForVacancy: mockImportCvs } = require('../services/cvImportService');
+
 const app = express();
 app.use(express.json());
 app.use('/api/vacancies', vacancyRoutes);
@@ -236,6 +243,58 @@ describe('rank-candidates additional branches', () => {
   });
 });
 
+describe('POST /api/vacancies/:id/import-cvs', () => {
+  const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+  test('returns 404 for unknown vacancy', async () => {
+    const res = await request(app)
+      .post('/api/vacancies/99999/import-cvs')
+      .attach('file', Buffer.from('fake'), { filename: 'test.xlsx', contentType: XLSX_MIME });
+    expect(res.status).toBe(404);
+  });
+
+  test('returns 400 when no file is uploaded', async () => {
+    const res = await request(app).post(`/api/vacancies/${vacId}/import-cvs`);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/file/i);
+  });
+
+  test('returns 200 with imported/linked counts on success', async () => {
+    parseExcelBuffer.mockResolvedValueOnce([
+      { job_application: 'Test (C001)', type: 'External', nationality: null, gender: null, age: null, language_skill: null, wfp_jobs_applied: null, skills_match_score: null, resume_text: null, skills_raw: null },
+    ]);
+    mockImportCvs.mockResolvedValueOnce({ imported: 1, linked: 1 });
+
+    const res = await request(app)
+      .post(`/api/vacancies/${vacId}/import-cvs`)
+      .attach('file', Buffer.from('fake'), { filename: 'test.xlsx', contentType: XLSX_MIME });
+
+    expect(res.status).toBe(200);
+    expect(res.body.imported).toBe(1);
+    expect(res.body.linked).toBe(1);
+  });
+
+  test('calls parseExcelBuffer with file buffer', async () => {
+    parseExcelBuffer.mockResolvedValueOnce([]);
+    mockImportCvs.mockResolvedValueOnce({ imported: 0, linked: 0 });
+    const buf = Buffer.from('excel-content');
+
+    await request(app)
+      .post(`/api/vacancies/${vacId}/import-cvs`)
+      .attach('file', buf, { filename: 'test.xlsx', contentType: XLSX_MIME });
+
+    expect(parseExcelBuffer).toHaveBeenCalledWith(buf);
+  });
+
+  test('returns 500 on service error', async () => {
+    parseExcelBuffer.mockRejectedValueOnce(new Error('Parse error'));
+    const res = await request(app)
+      .post(`/api/vacancies/${vacId}/import-cvs`)
+      .attach('file', Buffer.from('fake'), { filename: 'test.xlsx', contentType: XLSX_MIME });
+    expect(res.status).toBe(500);
+  });
+});
+
 describe('500 error handling', () => {
   beforeEach(() => { mockDb.close(); });
 
@@ -271,5 +330,11 @@ describe('500 error handling', () => {
   });
   test('GET rank-candidates returns 500', async () => {
     expect((await request(app).get('/api/vacancies/1/rank-candidates')).status).toBe(500);
+  });
+  test('POST import-cvs returns 500', async () => {
+    const res = await request(app)
+      .post('/api/vacancies/1/import-cvs')
+      .attach('file', Buffer.from('fake'), { filename: 'test.xlsx', contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    expect(res.status).toBe(500);
   });
 });

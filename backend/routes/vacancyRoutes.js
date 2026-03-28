@@ -1,5 +1,7 @@
 const express = require('express');
+const multer = require('multer');
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });
 const {
   createVacancy, getVacancies, getVacancyById, updateVacancy, deleteVacancy,
   addCandidateToVacancy, removeCandidateFromVacancy, getCandidatesForVacancy,
@@ -7,6 +9,8 @@ const {
 } = require('../services/vacancyService');
 const { getCandidateById: getCandById } = require('../services/dbService');
 const { rankCandidatesByTor } = require('../services/vectorService');
+const { parseExcelBuffer, importCvsForVacancy } = require('../services/cvImportService');
+const { getDb } = require('../config/db');
 
 router.post('/', async (req, res) => {
   try {
@@ -118,6 +122,19 @@ router.get('/:id/rank-candidates', async (req, res) => {
       })
       .sort((a, b) => b.similarity - a.similarity);
 
+    res.json(result);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST /api/vacancies/:id/import-cvs — upload Excel file and import candidates linked to vacancy
+router.post('/:id/import-cvs', upload.single('file'), async (req, res) => {
+  try {
+    const vacancy = await getVacancyById(req.params.id);
+    if (!vacancy) return res.status(404).json({ error: 'Not found' });
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const rows = await parseExcelBuffer(req.file.buffer);
+    const result = await importCvsForVacancy(rows, req.params.id, getDb());
     res.json(result);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

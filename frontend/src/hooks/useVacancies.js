@@ -71,6 +71,14 @@ export async function addAllCandidatesToVacancy(vacancyId) {
   return (await axios.post(`/api/vacancies/${vacancyId}/candidates/add-all`)).data;
 }
 
+export async function importCvsForVacancy(vacancyId, file) {
+  const form = new FormData();
+  form.append('file', file);
+  return (await axios.post(`/api/vacancies/${vacancyId}/import-cvs`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })).data;
+}
+
 export function useVacancyRanking(vacancyId, enabled = true) {
   const [ranking, setRanking] = useState({});
   const [loading, setLoading] = useState(false);
