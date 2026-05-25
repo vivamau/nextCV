@@ -24,9 +24,9 @@ async function parseExcelBuffer(buffer) {
       nationality:        v(13),
       gender:             v(16),
       age:                v(17) ? parseInt(v(17)) : null,
-      resume_text:        v(39),
-      skills_raw:         v(40),
-      language_skill:     v(41),
+      resume_text:        v(40),
+      skills_raw:         v(41),
+      language_skill:     v(42),
     });
   });
 
@@ -47,10 +47,6 @@ async function importCvsForVacancy(rows, vacancyId, db) {
       gender:             row.gender || null,
       age:                row.age || null,
       language_skill:     row.language_skill || null,
-      mau_vote:           null,
-      mau_comments:       null,
-      luke_vote:          null,
-      luke_comments:      null,
     }, db);
 
     imported++;

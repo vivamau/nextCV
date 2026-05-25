@@ -3,7 +3,7 @@ const router = express.Router();
 const { getCandidates, getCandidateById, getStats, getResumeByCandidate, getSkillsByCandidate, getAllCandidatesForIndexing, insertSkills, insertLinks, getLinksByCandidate } = require('../services/dbService');
 const { indexCandidate, rankCandidatesByTor } = require('../services/vectorService');
 const { getVacanciesForCandidate } = require('../services/vacancyService');
-const { extractSkillsFromResume, extractLinksFromResume } = require('../services/llmService');
+const { extractSkillsFromResume, extractLinksFromResume, buildLlmConfig, getActiveModel } = require('../services/llmService');
 const { getAllSettings } = require('../services/settingsService');
 const { getSkillOverlap } = require('../utilities/skillMatcher');
 const { logTokenUsage } = require('../services/tokenService');
@@ -146,11 +146,7 @@ router.post('/:id/extract-skills', async (req, res) => {
     let skills;
     let promptTokens = 0, completionTokens = 0;
     try {
-      const result = await extractSkillsFromResume(resume.resume_text, {
-        ollamaUrl: settings.ollama_url || 'http://localhost:11434',
-        model: settings.llm_model,
-        apiKey: settings.ollama_api_key || null,
-      });
+      const result = await extractSkillsFromResume(resume.resume_text, buildLlmConfig(settings));
       skills = result.skills;
       promptTokens = result.promptTokens;
       completionTokens = result.completionTokens;
@@ -160,7 +156,7 @@ router.post('/:id/extract-skills', async (req, res) => {
 
     await logTokenUsage({
       provider: settings.llm_provider,
-      model: settings.llm_model,
+      model: getActiveModel(settings),
       operation: 'extract_skills',
       promptTokens,
       completionTokens,
@@ -194,11 +190,7 @@ router.post('/:id/extract-links', async (req, res) => {
     let links;
     let promptTokens = 0, completionTokens = 0;
     try {
-      const result = await extractLinksFromResume(resume.resume_text, {
-        ollamaUrl: settings.ollama_url || 'http://localhost:11434',
-        model: settings.llm_model,
-        apiKey: settings.ollama_api_key || null,
-      });
+      const result = await extractLinksFromResume(resume.resume_text, buildLlmConfig(settings));
       links = result.links;
       promptTokens = result.promptTokens;
       completionTokens = result.completionTokens;
@@ -208,7 +200,7 @@ router.post('/:id/extract-links', async (req, res) => {
 
     await logTokenUsage({
       provider: settings.llm_provider,
-      model: settings.llm_model,
+      model: getActiveModel(settings),
       operation: 'extract_links',
       promptTokens,
       completionTokens,

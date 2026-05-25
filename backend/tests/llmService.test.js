@@ -3,10 +3,11 @@ jest.mock('ollama');
 
 const axios = require('axios');
 const { Ollama } = require('ollama');
-const { extractSkillsFromTor, extractSkillsFromResume, extractLinksFromResume, isCloudModel } = require('../services/llmService');
+const { extractSkillsFromTor, extractSkillsFromResume, extractLinksFromResume, isCloudModel, buildLlmConfig, getActiveModel } = require('../services/llmService');
 
-const LOCAL_CONFIG  = { ollamaUrl: 'http://localhost:11434', model: 'qwen3.5:4b',  apiKey: null };
-const CLOUD_CONFIG  = { ollamaUrl: 'http://localhost:11434', model: 'glm-5:cloud', apiKey: 'my-key' };
+const LOCAL_CONFIG       = { ollamaUrl: 'http://localhost:11434', model: 'qwen3.5:4b',  apiKey: null };
+const CLOUD_CONFIG       = { ollamaUrl: 'http://localhost:11434', model: 'glm-5:cloud', apiKey: 'my-key' };
+const OPENROUTER_CONFIG  = { provider: 'openrouter', model: 'openai/gpt-4o-mini', apiKey: 'or-key' };
 const TOR_TEXT = 'We need Python, SQL and strong communication skills.';
 
 // Mock Ollama SDK instance — simulate async generator for stream:true
@@ -221,6 +222,46 @@ describe('extractSkillsFromTor — guards', () => {
     expect(result.skills).toHaveLength(1);
     expect(result.skills[0].skill).toBe('Python');
   });
+
+  test('parses JSON array followed by trailing prose (llama3.2 style)', async () => {
+    axios.post.mockResolvedValueOnce({
+      data: { response: '["Python","SQL","Docker"]\n\nThese are the key technical skills mentioned in the document.' },
+    });
+    const result = await extractSkillsFromTor(TOR_TEXT, LOCAL_CONFIG);
+    expect(result.skills.map(s => s.skill)).toEqual(['Python', 'SQL', 'Docker']);
+  });
+
+  test('parses first array when LLM emits multiple arrays', async () => {
+    axios.post.mockResolvedValueOnce({
+      data: { response: '["Python","SQL"]\nAlso noteworthy: ["Leadership","Communication"]' },
+    });
+    const result = await extractSkillsFromTor(TOR_TEXT, LOCAL_CONFIG);
+    expect(result.skills.map(s => s.skill)).toEqual(['Python', 'SQL']);
+  });
+
+  test('parses array wrapped in markdown code fence', async () => {
+    axios.post.mockResolvedValueOnce({
+      data: { response: '```json\n["Python","SQL"]\n```' },
+    });
+    const result = await extractSkillsFromTor(TOR_TEXT, LOCAL_CONFIG);
+    expect(result.skills.map(s => s.skill)).toContain('Python');
+  });
+
+  test('handles array containing a string with a bracket character', async () => {
+    axios.post.mockResolvedValueOnce({
+      data: { response: '["Python","C++ (advanced)","SQL [PostgreSQL]"] trailing text' },
+    });
+    const result = await extractSkillsFromTor(TOR_TEXT, LOCAL_CONFIG);
+    expect(result.skills.map(s => s.skill)).toEqual(['Python', 'C++ (advanced)', 'SQL [PostgreSQL]']);
+  });
+
+  test('handles nested arrays correctly via bracket balance', async () => {
+    axios.post.mockResolvedValueOnce({
+      data: { response: '[{"skill":"Python","tags":["lang","backend"]},{"skill":"SQL","tags":["db"]}] done' },
+    });
+    const result = await extractSkillsFromTor(TOR_TEXT, LOCAL_CONFIG);
+    expect(result.skills.map(s => s.skill)).toEqual(['Python', 'SQL']);
+  });
 });
 
 const RESUME_TEXT = 'Alice has 5 years of Python and SQL experience.';
@@ -330,5 +371,146 @@ describe('extractLinksFromResume', () => {
   test('throws when LLM returns non-array JSON', async () => {
     axios.post.mockResolvedValueOnce({ data: { response: '{"links":[]}' } });
     await expect(extractLinksFromResume(RESUME_TEXT, LOCAL_CONFIG)).rejects.toThrow('JSON array');
+  });
+});
+
+// --- OpenRouter provider ---
+describe('extractSkillsFromTor — openrouter provider', () => {
+  test('posts to openrouter.ai/api/v1/chat/completions with bearer auth', async () => {
+    axios.post.mockResolvedValueOnce({
+      data: {
+        choices: [{ message: { content: '["Python","SQL"]' } }],
+        usage: { prompt_tokens: 120, completion_tokens: 30 },
+      },
+    });
+    const result = await extractSkillsFromTor(TOR_TEXT, OPENROUTER_CONFIG);
+    expect(axios.post).toHaveBeenCalledWith(
+      'https://openrouter.ai/api/v1/chat/completions',
+      expect.objectContaining({
+        model: 'openai/gpt-4o-mini',
+        messages: expect.any(Array),
+      }),
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: 'Bearer or-key' }),
+      })
+    );
+    expect(result.skills.map(s => s.skill)).toContain('Python');
+    expect(result.promptTokens).toBe(120);
+    expect(result.completionTokens).toBe(30);
+  });
+
+  test('throws when api key is missing', async () => {
+    await expect(
+      extractSkillsFromTor(TOR_TEXT, { provider: 'openrouter', model: 'openai/gpt-4o-mini', apiKey: null })
+    ).rejects.toThrow('API key');
+  });
+
+  test('throws when model is missing', async () => {
+    await expect(
+      extractSkillsFromTor(TOR_TEXT, { provider: 'openrouter', model: '', apiKey: 'or-key' })
+    ).rejects.toThrow('model');
+  });
+
+  test('defaults token counts to 0 when usage missing', async () => {
+    axios.post.mockResolvedValueOnce({
+      data: { choices: [{ message: { content: '["Python"]' } }] },
+    });
+    const result = await extractSkillsFromTor(TOR_TEXT, OPENROUTER_CONFIG);
+    expect(result.promptTokens).toBe(0);
+    expect(result.completionTokens).toBe(0);
+  });
+
+  test('does not use Ollama SDK', async () => {
+    axios.post.mockResolvedValueOnce({
+      data: { choices: [{ message: { content: '["Python"]' } }] },
+    });
+    await extractSkillsFromTor(TOR_TEXT, OPENROUTER_CONFIG);
+    expect(Ollama).not.toHaveBeenCalled();
+  });
+
+  test('throws helpful 402 error mentioning credits and :free models', async () => {
+    const err = new Error('Request failed with status code 402');
+    err.response = { status: 402, data: { error: { message: 'Insufficient credits' } } };
+    axios.post.mockRejectedValueOnce(err);
+    await expect(extractSkillsFromTor(TOR_TEXT, OPENROUTER_CONFIG)).rejects.toThrow(/402.*credits.*:free/);
+  });
+
+  test('throws helpful 401 error for bad API key', async () => {
+    const err = new Error('Request failed with status code 401');
+    err.response = { status: 401, data: { error: { message: 'Invalid key' } } };
+    axios.post.mockRejectedValueOnce(err);
+    await expect(extractSkillsFromTor(TOR_TEXT, OPENROUTER_CONFIG)).rejects.toThrow(/401.*API key/);
+  });
+
+  test('throws helpful 429 error for rate limiting', async () => {
+    const err = new Error('Request failed with status code 429');
+    err.response = { status: 429, data: { error: { message: 'Too many' } } };
+    axios.post.mockRejectedValueOnce(err);
+    await expect(extractSkillsFromTor(TOR_TEXT, OPENROUTER_CONFIG)).rejects.toThrow(/429.*Rate Limited/);
+  });
+
+  test('passes through network errors without a status', async () => {
+    axios.post.mockRejectedValueOnce(new Error('ECONNRESET'));
+    await expect(extractSkillsFromTor(TOR_TEXT, OPENROUTER_CONFIG)).rejects.toThrow('ECONNRESET');
+  });
+});
+
+describe('extractSkillsFromResume — openrouter provider', () => {
+  test('returns flat skills list from openrouter response', async () => {
+    axios.post.mockResolvedValueOnce({
+      data: {
+        choices: [{ message: { content: '["Python","SQL"]' } }],
+        usage: { prompt_tokens: 50, completion_tokens: 10 },
+      },
+    });
+    const result = await extractSkillsFromResume(RESUME_TEXT, OPENROUTER_CONFIG);
+    expect(result.skills).toContain('Python');
+    expect(result.skills).toContain('SQL');
+  });
+});
+
+// --- buildLlmConfig / getActiveModel ---
+describe('buildLlmConfig', () => {
+  test('returns ollama config when provider is ollama', () => {
+    const cfg = buildLlmConfig({
+      llm_provider: 'ollama',
+      llm_model: 'qwen3.5:4b',
+      ollama_url: 'http://localhost:11434',
+      ollama_api_key: 'k',
+    });
+    expect(cfg).toEqual({
+      provider: 'ollama',
+      ollamaUrl: 'http://localhost:11434',
+      model: 'qwen3.5:4b',
+      apiKey: 'k',
+    });
+  });
+
+  test('returns openrouter config when provider is openrouter', () => {
+    const cfg = buildLlmConfig({
+      llm_provider: 'openrouter',
+      openrouter_model: 'openai/gpt-4o-mini',
+      openrouter_api_key: 'or-key',
+    });
+    expect(cfg).toEqual({
+      provider: 'openrouter',
+      model: 'openai/gpt-4o-mini',
+      apiKey: 'or-key',
+    });
+  });
+
+  test('defaults ollamaUrl when missing', () => {
+    const cfg = buildLlmConfig({ llm_provider: 'ollama', llm_model: 'm' });
+    expect(cfg.ollamaUrl).toBe('http://localhost:11434');
+    expect(cfg.apiKey).toBeNull();
+  });
+});
+
+describe('getActiveModel', () => {
+  test('returns openrouter_model for openrouter', () => {
+    expect(getActiveModel({ llm_provider: 'openrouter', openrouter_model: 'm1', llm_model: 'm2' })).toBe('m1');
+  });
+  test('returns llm_model for ollama', () => {
+    expect(getActiveModel({ llm_provider: 'ollama', llm_model: 'm2' })).toBe('m2');
   });
 });

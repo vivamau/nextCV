@@ -141,6 +141,9 @@ function AddCandidateModal({ vacancyId, hasTor, existingIds, onClose, onAdded })
 
 // --- Extract Skills Confirmation Modal ---
 function ExtractSkillsModal({ candidateCount, alreadyDone, onConfirm, onClose, extracting, progress }) {
+  const totalCount = candidateCount + alreadyDone;
+  const hasPartialState = alreadyDone > 0 && candidateCount > 0;
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
@@ -157,16 +160,28 @@ function ExtractSkillsModal({ candidateCount, alreadyDone, onConfirm, onClose, e
         </div>
 
         <div className="px-6 py-5 space-y-4">
-          <p className="text-sm text-gray-700 dark:text-gray-200">
-            You are about to extract skills via AI for{' '}
-            <span className="font-semibold text-gray-900 dark:text-white">{candidateCount} candidate{candidateCount !== 1 ? 's' : ''}</span>{' '}
-            that have not had AI extraction run yet.
-            {alreadyDone > 0 && (
-              <span className="block mt-1 text-xs text-gray-400">
-                {alreadyDone} candidate{alreadyDone !== 1 ? 's' : ''} already have AI-extracted skills and will be skipped.
-              </span>
-            )}
-          </p>
+          {hasPartialState ? (
+            <div className="space-y-3">
+              <p className="text-sm text-gray-700 dark:text-gray-200">
+                <span className="font-semibold text-gray-900 dark:text-white">{alreadyDone}</span> of{' '}
+                <span className="font-semibold text-gray-900 dark:text-white">{totalCount}</span>{' '}
+                visible candidates already have AI-extracted skills — likely from a previous run.
+              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                How would you like to proceed?
+              </p>
+              <ul className="text-xs text-gray-500 dark:text-gray-400 list-disc list-inside space-y-1 pl-1">
+                <li><span className="font-semibold text-gray-700 dark:text-gray-200">Missing only</span> — extract for the {candidateCount} candidate{candidateCount !== 1 ? 's' : ''} without AI skills (resume previous run).</li>
+                <li><span className="font-semibold text-gray-700 dark:text-gray-200">From scratch</span> — re-extract for all {totalCount} visible candidates, overwriting existing AI skills.</li>
+              </ul>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-700 dark:text-gray-200">
+              You are about to extract skills via AI for{' '}
+              <span className="font-semibold text-gray-900 dark:text-white">{candidateCount} candidate{candidateCount !== 1 ? 's' : ''}</span>{' '}
+              that have not had AI extraction run yet.
+            </p>
+          )}
 
           <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 space-y-2 text-sm text-yellow-800 dark:text-yellow-300">
             <p className="font-semibold flex items-center gap-1.5"><AlertTriangle size={13} /> Before you proceed:</p>
@@ -202,17 +217,26 @@ function ExtractSkillsModal({ candidateCount, alreadyDone, onConfirm, onClose, e
           )}
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-3">
+        <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-2 flex-wrap">
           {!extracting ? (
             <>
               <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100">
                 Cancel
               </button>
+              {hasPartialState && (
+                <button
+                  onClick={() => onConfirm('all')}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm border border-purple-600 text-purple-700 dark:text-purple-300 rounded-md hover:bg-purple-50 dark:hover:bg-purple-900/30"
+                >
+                  <RefreshCw size={14} /> From scratch ({totalCount})
+                </button>
+              )}
               <button
-                onClick={onConfirm}
+                onClick={() => onConfirm('missing')}
                 className="flex items-center gap-1.5 px-4 py-2 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700"
               >
-                <Sparkles size={14} /> Extract for {candidateCount} candidate{candidateCount !== 1 ? 's' : ''}
+                <Sparkles size={14} />
+                {hasPartialState ? `Missing only (${candidateCount})` : `Extract for ${candidateCount} candidate${candidateCount !== 1 ? 's' : ''}`}
               </button>
             </>
           ) : (
@@ -266,8 +290,10 @@ export default function VacancyDetailPage() {
 
   const candidatesWithoutSkills = visibleCandidates.filter(c => !c.has_ai_skills);
 
-  const handleExtractSkills = async () => {
-    const toProcess = visibleCandidates.filter(c => !c.has_ai_skills);
+  const handleExtractSkills = async (mode = 'missing') => {
+    const toProcess = mode === 'all'
+      ? visibleCandidates
+      : visibleCandidates.filter(c => !c.has_ai_skills);
     setExtracting(true);
     setProgress({ done: 0, total: toProcess.length, skipped: 0, failed: 0, current: '' });
     let skipped = 0, failed = 0;

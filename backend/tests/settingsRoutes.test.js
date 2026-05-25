@@ -65,6 +65,36 @@ describe('PUT /api/settings', () => {
     const res = await request(app).put('/api/settings').send({ llm_provider: 'none' });
     expect(res.status).toBe(200);
   });
+
+  test('saves openrouter provider with model and api key', async () => {
+    const res = await request(app).put('/api/settings').send({
+      llm_provider: 'openrouter',
+      openrouter_api_key: 'or-key',
+      openrouter_model: 'openai/gpt-4o-mini',
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+
+    const all = await request(app).get('/api/settings');
+    expect(all.body.openrouter_api_key).toBe('or-key');
+    expect(all.body.openrouter_model).toBe('openai/gpt-4o-mini');
+  });
+
+  test('returns 400 when openrouter provider has no api key', async () => {
+    const res = await request(app).put('/api/settings').send({
+      llm_provider: 'openrouter',
+      openrouter_model: 'openai/gpt-4o-mini',
+    });
+    expect(res.status).toBe(400);
+  });
+
+  test('returns 400 when openrouter provider has no model', async () => {
+    const res = await request(app).put('/api/settings').send({
+      llm_provider: 'openrouter',
+      openrouter_api_key: 'or-key',
+    });
+    expect(res.status).toBe(400);
+  });
 });
 
 // --- GET /api/settings/ollama/models ---
@@ -89,6 +119,33 @@ describe('GET /api/settings/ollama/models', () => {
     axios.get.mockResolvedValueOnce({ data: { models: [] } });
     const res = await request(app).get('/api/settings/ollama/models');
     expect(res.status).toBe(200);
+  });
+});
+
+// --- GET /api/settings/openrouter/models ---
+describe('GET /api/settings/openrouter/models', () => {
+  test('returns sorted model ids from OpenRouter', async () => {
+    axios.get.mockResolvedValueOnce({
+      data: { data: [{ id: 'openai/gpt-4o' }, { id: 'anthropic/claude-3-haiku' }] },
+    });
+    const res = await request(app).get('/api/settings/openrouter/models?api_key=k');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(['anthropic/claude-3-haiku', 'openai/gpt-4o']);
+  });
+
+  test('passes Authorization header when api_key provided', async () => {
+    axios.get.mockResolvedValueOnce({ data: { data: [] } });
+    await request(app).get('/api/settings/openrouter/models?api_key=secret');
+    expect(axios.get).toHaveBeenCalledWith(
+      'https://openrouter.ai/api/v1/models',
+      expect.objectContaining({ headers: { Authorization: 'Bearer secret' } })
+    );
+  });
+
+  test('returns 502 when OpenRouter is unreachable', async () => {
+    axios.get.mockRejectedValueOnce(new Error('network down'));
+    const res = await request(app).get('/api/settings/openrouter/models?api_key=k');
+    expect(res.status).toBe(502);
   });
 });
 

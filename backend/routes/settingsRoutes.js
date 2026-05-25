@@ -16,6 +16,19 @@ router.get('/ollama/models', async (req, res) => {
   }
 });
 
+// GET /api/settings/openrouter/models
+router.get('/openrouter/models', async (req, res) => {
+  try {
+    const apiKey = req.query.api_key || await getSetting('openrouter_api_key') || '';
+    const headers = apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
+    const response = await axios.get('https://openrouter.ai/api/v1/models', { timeout: 10000, headers });
+    const models = (response.data?.data || []).map(m => m.id).filter(Boolean).sort();
+    res.json(models);
+  } catch (err) {
+    res.status(502).json({ error: `Cannot reach OpenRouter: ${err.message}` });
+  }
+});
+
 // GET /api/settings
 router.get('/', async (req, res) => {
   try {
@@ -29,17 +42,26 @@ router.get('/', async (req, res) => {
 // PUT /api/settings
 router.put('/', async (req, res) => {
   try {
-    const { llm_provider, llm_model, ollama_url, ollama_api_key } = req.body;
+    const {
+      llm_provider, llm_model, ollama_url, ollama_api_key,
+      openrouter_api_key, openrouter_model,
+    } = req.body;
 
     if (!llm_provider) return res.status(400).json({ error: 'llm_provider is required' });
     if (llm_provider === 'ollama' && !llm_model) {
       return res.status(400).json({ error: 'llm_model is required when provider is ollama' });
+    }
+    if (llm_provider === 'openrouter') {
+      if (!openrouter_api_key) return res.status(400).json({ error: 'openrouter_api_key is required when provider is openrouter' });
+      if (!openrouter_model) return res.status(400).json({ error: 'openrouter_model is required when provider is openrouter' });
     }
 
     await setSetting('llm_provider', llm_provider);
     await setSetting('llm_model', llm_model || '');
     if (ollama_url) await setSetting('ollama_url', ollama_url);
     await setSetting('ollama_api_key', ollama_api_key || '');
+    if (openrouter_api_key !== undefined) await setSetting('openrouter_api_key', openrouter_api_key || '');
+    if (openrouter_model !== undefined) await setSetting('openrouter_model', openrouter_model || '');
 
     res.json({ ok: true });
   } catch (err) {

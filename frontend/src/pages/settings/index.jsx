@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Settings, RefreshCw, CheckCircle, AlertCircle, Loader, Zap } from 'lucide-react';
-import { useSettings, saveSettings, fetchOllamaModels, useTokenUsage } from '../../hooks/useSettings';
+import { useSettings, saveSettings, fetchOllamaModels, fetchOpenRouterModels, useTokenUsage } from '../../hooks/useSettings';
 
 const PROVIDERS = [
   { value: 'none', label: 'None (disabled)' },
   { value: 'ollama', label: 'Ollama (local)' },
+  { value: 'openrouter', label: 'OpenRouter (cloud)' },
 ];
 
 function StatusBadge({ status }) {
@@ -12,7 +13,7 @@ function StatusBadge({ status }) {
   const map = {
     saved:   { icon: CheckCircle,  cls: 'text-green-600 bg-green-50 border-green-200 dark:bg-green-900/30 dark:border-green-800',  text: 'Settings saved' },
     error:   { icon: AlertCircle,  cls: 'text-red-600 bg-red-50 border-red-200 dark:bg-red-900/30 dark:border-red-800',        text: 'Failed to save' },
-    unreachable: { icon: AlertCircle, cls: 'text-yellow-600 bg-yellow-50 border-yellow-200 dark:bg-yellow-900/30 dark:border-yellow-800', text: 'Ollama unreachable' },
+    unreachable: { icon: AlertCircle, cls: 'text-yellow-600 bg-yellow-50 border-yellow-200 dark:bg-yellow-900/30 dark:border-yellow-800', text: 'Provider unreachable' },
   };
   const { icon: Icon, cls, text } = map[status] || {};
   return (
@@ -97,6 +98,9 @@ export default function SettingsPage() {
   const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState('');
   const [models, setModels] = useState([]);
+  const [openrouterApiKey, setOpenrouterApiKey] = useState('');
+  const [openrouterModel, setOpenrouterModel] = useState('');
+  const [openrouterModels, setOpenrouterModels] = useState([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState(null);
@@ -108,6 +112,8 @@ export default function SettingsPage() {
     setOllamaUrl(settings.ollama_url || 'http://localhost:11434');
     setApiKey(settings.ollama_api_key || '');
     setModel(settings.llm_model || '');
+    setOpenrouterApiKey(settings.openrouter_api_key || '');
+    setOpenrouterModel(settings.openrouter_model || '');
   }, [settings]);
 
   const loadModels = async (url = ollamaUrl) => {
@@ -125,9 +131,25 @@ export default function SettingsPage() {
     }
   };
 
-  // Auto-load models when provider switches to ollama
+  const loadOpenRouterModels = async (key = openrouterApiKey) => {
+    setLoadingModels(true);
+    setStatus(null);
+    try {
+      const list = await fetchOpenRouterModels(key);
+      setOpenrouterModels(list);
+      if (list.length && !list.includes(openrouterModel)) setOpenrouterModel(list[0]);
+    } catch {
+      setOpenrouterModels([]);
+      setStatus('unreachable');
+    } finally {
+      setLoadingModels(false);
+    }
+  };
+
+  // Auto-load models when provider switches
   useEffect(() => {
     if (provider === 'ollama') loadModels();
+    if (provider === 'openrouter') loadOpenRouterModels();
   }, [provider]);
 
   const handleSave = async (e) => {
@@ -135,7 +157,14 @@ export default function SettingsPage() {
     setSaving(true);
     setStatus(null);
     try {
-      await saveSettings({ llm_provider: provider, llm_model: model, ollama_url: ollamaUrl, ollama_api_key: apiKey });
+      await saveSettings({
+        llm_provider: provider,
+        llm_model: model,
+        ollama_url: ollamaUrl,
+        ollama_api_key: apiKey,
+        openrouter_api_key: openrouterApiKey,
+        openrouter_model: openrouterModel,
+      });
       setStatus('saved');
     } catch {
       setStatus('error');
@@ -230,6 +259,60 @@ export default function SettingsPage() {
                   ) : (
                     <p className="text-sm text-yellow-600 bg-yellow-50 border border-yellow-200 rounded-md px-3 py-2">
                       No models found. Make sure Ollama is running and click Refresh.
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* OpenRouter-specific fields */}
+            {provider === 'openrouter' && (
+              <>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+                    OpenRouter API Key
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="password"
+                      value={openrouterApiKey}
+                      onChange={e => setOpenrouterApiKey(e.target.value)}
+                      placeholder="sk-or-..."
+                      className="flex-1 border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => loadOpenRouterModels(openrouterApiKey)}
+                      disabled={loadingModels}
+                      className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                    >
+                      <RefreshCw size={14} className={loadingModels ? 'animate-spin' : ''} />
+                      Refresh
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Get a key at <span className="font-mono">openrouter.ai/keys</span>
+                  </p>
+                </div>
+
+                <div>
+                  {loadingModels ? (
+                    <div className="flex items-center gap-2 text-sm text-gray-500 py-2">
+                      <Loader size={14} className="animate-spin" /> Loading models...
+                    </div>
+                  ) : openrouterModels.length > 0 ? (
+                    <select
+                      value={openrouterModel}
+                      onChange={e => setOpenrouterModel(e.target.value)}
+                      required
+                      className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    >
+                      <option value="">Select a model...</option>
+                      {openrouterModels.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  ) : (
+                    <p className="text-sm text-yellow-600 bg-yellow-50 border border-yellow-200 rounded-md px-3 py-2">
+                      No models loaded. Enter your API key and click Refresh.
                     </p>
                   )}
                 </div>

@@ -37,13 +37,9 @@ async function importCvs() {
       nationality:        v(13),
       gender:             v(16),
       age:                v(17) ? parseInt(v(17)) : null,
-      language_skill:     v(41),
-      mau_vote:           null,
-      mau_comments:       null,
-      luke_vote:          null,
-      luke_comments:      null,
-      resume_text:        v(39),
-      skills_raw:         v(40),
+      language_skill:     v(42),
+      resume_text:        v(40),
+      skills_raw:         v(41),
     });
   });
 

@@ -62,9 +62,9 @@ describe('parseExcelBuffer', () => {
         13: 'Uganda',
         16: 'Male',
         17: '25',
-        39: 'Resume text here',
-        40: 'Python\nSQL',
-        41: 'French',
+        40: 'Resume text here',
+        41: 'Python\nSQL',
+        42: 'French',
       },
     ]);
     const result = await parseExcelBuffer(Buffer.from(''));

@@ -33,6 +33,11 @@ export async function fetchOllamaModels(url) {
   return res.data;
 }
 
+export async function fetchOpenRouterModels(apiKey) {
+  const res = await axios.get('/api/settings/openrouter/models', { params: { api_key: apiKey || undefined } });
+  return res.data;
+}
+
 export function useTokenUsage() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);

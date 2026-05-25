@@ -20,6 +20,8 @@ jest.mock('../services/vectorService', () => ({
 jest.mock('../services/llmService', () => ({
   extractSkillsFromResume: jest.fn(),
   extractLinksFromResume: jest.fn(),
+  buildLlmConfig: jest.fn(() => ({ provider: 'ollama', model: 'test', ollamaUrl: 'http://x', apiKey: null })),
+  getActiveModel: jest.fn(() => 'test'),
 }));
 
 jest.mock('../services/settingsService', () => ({

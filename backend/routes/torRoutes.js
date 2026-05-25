@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const { createTor, getTors, getTorById, updateTor, deleteTor } = require('../services/torService');
 const { replaceTorSkills, getTorSkills } = require('../services/torSkillsService');
-const { extractSkillsFromTor } = require('../services/llmService');
+const { extractSkillsFromTor, buildLlmConfig, getActiveModel } = require('../services/llmService');
 const { getAllSettings } = require('../services/settingsService');
 const { logTokenUsage } = require('../services/tokenService');
 const { extractTextFromBuffer } = require('../utilities/extractText');
@@ -124,11 +124,7 @@ router.post('/:id/extract-skills', async (req, res) => {
     let skills;
     let promptTokens = 0, completionTokens = 0;
     try {
-      const result = await extractSkillsFromTor(tor.file_content, {
-        ollamaUrl: settings.ollama_url || 'http://localhost:11434',
-        model: settings.llm_model,
-        apiKey: settings.ollama_api_key || null,
-      });
+      const result = await extractSkillsFromTor(tor.file_content, buildLlmConfig(settings));
       skills = result.skills;
       promptTokens = result.promptTokens;
       completionTokens = result.completionTokens;
@@ -138,7 +134,7 @@ router.post('/:id/extract-skills', async (req, res) => {
 
     await logTokenUsage({
       provider: settings.llm_provider,
-      model: settings.llm_model,
+      model: getActiveModel(settings),
       operation: 'extract_tor_skills',
       promptTokens,
       completionTokens,
